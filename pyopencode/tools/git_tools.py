@@ -1,4 +1,6 @@
 import subprocess
+from typing import Optional
+
 from pyopencode.tools.registry import registry
 
 
@@ -14,7 +16,7 @@ from pyopencode.tools.registry import registry
     },
     category="always_allow",
 )
-def git_diff(staged: bool = False, file_path: str = None) -> str:
+def git_diff(staged: bool = False, file_path: Optional[str] = None) -> str:
     cmd = ["git", "diff"]
     if staged:
         cmd.append("--staged")
