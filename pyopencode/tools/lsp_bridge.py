@@ -45,7 +45,7 @@ class LSPBridge:
         )
 
     async def find_references(self, file_path: str, line: int, character: int) -> list:
-        return await self._request(
+        result = await self._request(
             "textDocument/references",
             {
                 "textDocument": {"uri": f"file://{file_path}"},
@@ -53,11 +53,15 @@ class LSPBridge:
                 "context": {"includeDeclaration": True},
             },
         )
+        return result.get("result", []) if isinstance(result, dict) else []
 
     async def get_diagnostics(self, file_path: str) -> list:
-        pass
+        return []
 
     async def _request(self, method: str, params: dict) -> dict:
+        if not self.process or not self.process.stdin:
+            return {}
+
         self._request_id += 1
         msg = {
             "jsonrpc": "2.0",
@@ -74,6 +78,9 @@ class LSPBridge:
         return await self._read_response()
 
     async def _read_response(self) -> dict:
+        if not self.process or not self.process.stdout:
+            return {}
+
         header_line = self.process.stdout.readline().decode()
         if not header_line.startswith("Content-Length:"):
             return {}

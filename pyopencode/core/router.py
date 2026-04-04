@@ -1,3 +1,6 @@
+from typing import Optional
+
+
 class ModelRouter:
     def __init__(self, config: dict):
         self.config = config
@@ -8,7 +11,7 @@ class ModelRouter:
             "cheap": config.get("cheap_model", "minimax-2.5"),
         }
 
-    def select(self, task_hint: str = None, token_count: int = 0) -> str:
+    def select(self, task_hint: Optional[str] = None, token_count: int = 0) -> str:
         if task_hint == "compaction":
             return self.model_tiers["cheap"]
         if task_hint == "subagent":

@@ -1,23 +1,23 @@
 import json
-import asyncio
-from pyopencode.llm.client import LLMClient
-from pyopencode.tools.registry import registry
-from pyopencode.tools.permissions import PermissionManager
-from pyopencode.memory.agent_md import load_memory
 
-import pyopencode.tools.read_file
-import pyopencode.tools.write_file
-import pyopencode.tools.edit_file
 import pyopencode.tools.bash
+import pyopencode.tools.dispatch_subagent
+import pyopencode.tools.edit_file
+import pyopencode.tools.git_tools
 import pyopencode.tools.glob_search
 import pyopencode.tools.grep_search
+import pyopencode.tools.read_file
 import pyopencode.tools.todo_write
-import pyopencode.tools.git_tools
-import pyopencode.tools.dispatch_subagent
+import pyopencode.tools.write_file  # noqa: F401 - imported for tool registration
+from pyopencode.llm.client import LLMClient
+from pyopencode.memory.agent_md import load_memory
 from pyopencode.tools.dispatch_subagent import set_llm_instance
+from pyopencode.tools.permissions import PermissionManager
+from pyopencode.tools.registry import registry
 
-SYSTEM_PROMPT = """You are PyOpenCode, an expert AI software engineer operating in the user's terminal.
-You have direct access to the filesystem and can execute commands.
+SYSTEM_PROMPT = """You are PyOpenCode, an expert AI software engineer \
+operating in the user's terminal. You have direct access to the filesystem \
+and can execute commands.
 
 ## Identity
 - You are autonomous: you explore, plan, implement, and verify without asking for permission at every step.

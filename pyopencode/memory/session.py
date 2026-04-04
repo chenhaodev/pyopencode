@@ -1,7 +1,8 @@
 import json
 import sqlite3
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
 DB_PATH = Path.home() / ".pyopencode" / "sessions.db"
 
@@ -68,7 +69,9 @@ class SessionStore:
         row = cursor.fetchone()
         return json.loads(row[0]) if row else None
 
-    def list_sessions(self, project_path: str = None, limit: int = 20) -> list[dict]:
+    def list_sessions(
+        self, project_path: Optional[str] = None, limit: int = 20
+    ) -> list[dict]:
         if project_path:
             cursor = self.conn.execute(
                 "SELECT id, project_path, updated_at, summary FROM sessions "

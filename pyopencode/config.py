@@ -1,6 +1,15 @@
+import importlib.util
 import os
-from pathlib import Path
 import tomllib
+from pathlib import Path
+
+_PROVIDER_ENV_VARS = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "qwen": "DASHSCOPE_API_KEY",
+    "siliconflow": "SILICONFLOW_API_KEY",
+}
 
 DEFAULT_CONFIG = {
     "model": "claude-sonnet-4-20250514",
@@ -53,7 +62,43 @@ def load_config() -> dict:
             project_config = tomllib.load(f)
             deep_merge(config, project_config)
 
+    info_path = Path.cwd() / "config.info.py"
+    if info_path.exists():
+        _load_py_config(config, info_path)
+
+    _apply_api_keys(config)
     return config
+
+
+def _load_py_config(config: dict, path: Path):
+    spec = importlib.util.spec_from_file_location("_config_info", path)
+    if spec is None or spec.loader is None:
+        return
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    if hasattr(mod, "DEFAULT_CONFIG"):
+        deep_merge(config, mod.DEFAULT_CONFIG)
+
+
+def _apply_api_keys(config: dict):
+    for provider, pconf in config.get("providers", {}).items():
+        env_name = _PROVIDER_ENV_VARS.get(provider)
+        if not env_name:
+            continue
+        api_key_env = pconf.get("api_key_env", "")
+        if not api_key_env:
+            continue
+        if _is_direct_key(api_key_env):
+            os.environ.setdefault(env_name, api_key_env)
+        else:
+            val = os.environ.get(api_key_env)
+            if val:
+                os.environ.setdefault(env_name, val)
+
+
+def _is_direct_key(value: str) -> bool:
+    clean = value.replace("_", "")
+    return not (clean.isupper() and clean.isalpha())
 
 
 def deep_merge(base: dict, override: dict):

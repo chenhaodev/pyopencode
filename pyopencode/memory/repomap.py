@@ -1,5 +1,6 @@
 import ast
 from pathlib import Path
+from typing import Optional
 
 _IGNORE_DIRS = {
     ".git",
@@ -13,7 +14,7 @@ _IGNORE_DIRS = {
 }
 
 
-def generate_repomap(root: str = ".", extensions: list[str] = None) -> str:
+def generate_repomap(root: str = ".", extensions: Optional[list[str]] = None) -> str:
     if extensions is None:
         extensions = [".py"]
 

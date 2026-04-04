@@ -16,6 +16,8 @@ class LLMClient:
         stream: bool = True,
     ) -> dict:
         model = model or self.config["model"]
+        provider = self.config.get("provider", "anthropic")
+        provider_config = self.config.get("providers", {}).get(provider, {})
 
         kwargs = {
             "model": model,
@@ -27,6 +29,14 @@ class LLMClient:
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
+
+        api_base = provider_config.get("api_base")
+        if api_base:
+            kwargs["api_base"] = api_base
+
+        api_key_env = provider_config.get("api_key_env", "")
+        if api_key_env and not api_key_env.replace("_", "").isupper():
+            kwargs["api_key"] = api_key_env
 
         if stream:
             return await self._stream_chat(**kwargs)

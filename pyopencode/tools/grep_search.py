@@ -1,4 +1,6 @@
 import subprocess
+from typing import Optional
+
 from pyopencode.tools.registry import registry
 
 
@@ -22,7 +24,7 @@ from pyopencode.tools.registry import registry
     },
     category="always_allow",
 )
-def grep_search(pattern: str, path: str = ".", include: str = None) -> str:
+def grep_search(pattern: str, path: str = ".", include: Optional[str] = None) -> str:
     try:
         cmd = ["rg", "--line-number", "--no-heading", "--color=never", "-e", pattern]
         if include:

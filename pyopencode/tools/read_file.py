@@ -1,4 +1,6 @@
 from pathlib import Path
+from typing import Optional
+
 from pyopencode.tools.registry import registry
 
 
@@ -22,7 +24,9 @@ from pyopencode.tools.registry import registry
     },
     category="always_allow",
 )
-def read_file(file_path: str, start_line: int = None, end_line: int = None) -> str:
+def read_file(
+    file_path: str, start_line: Optional[int] = None, end_line: Optional[int] = None
+) -> str:
     path = Path(file_path)
     if not path.exists():
         return f"Error: File '{file_path}' does not exist."

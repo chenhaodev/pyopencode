@@ -12,3 +12,7 @@ venv/
 .ruff_cache/
 *.sqlite
 *.db
+
+# SECURITY: Never commit API keys
+config.info.py
+*.secret.py
