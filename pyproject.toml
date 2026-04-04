@@ -1,0 +1,24 @@
+[project]
+name = "pyopencode"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.0",
+    "litellm>=1.40",
+]
+
+[project.scripts]
+pyopencode = "pyopencode.main:main"
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio"]
+tui = ["textual>=0.50"]
+lsp = ["pygls>=1.0"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pyopencode*"]
