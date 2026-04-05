@@ -73,8 +73,16 @@ class AgentLoop:
         self._session_id = ""
         self._session_store: SessionStore | None = None
         self._chat_stream = True
+        self._stream_sink: Optional[Callable[[str], None]] = None
+        self._notify: Optional[Callable[[str], None]] = None
         self._tool_echo: Optional[Callable[[str, dict], None]] = None
         self._permission_handler: Optional[PermissionHandler] = None
+
+    def _emit(self, message: str) -> None:
+        if self._notify:
+            self._notify(message)
+        else:
+            print(message)
 
     def _build_system_prompt(self) -> str:
         memory = load_memory()
@@ -211,6 +219,7 @@ class AgentLoop:
                 messages=self.messages,
                 tools=registry.get_schemas(),
                 stream=self._chat_stream,
+                stream_sink=self._stream_sink if self._chat_stream else None,
             )
 
             assistant_msg: dict = {"role": "assistant"}
@@ -239,7 +248,7 @@ class AgentLoop:
             await self._maybe_compact()
 
         else:
-            print("\n⚠️  Reached maximum iterations. Stopping.")
+            self._emit("\n⚠️  Reached maximum iterations. Stopping.")
 
     async def _execute_tool_calls(self, tool_calls: list[dict]) -> list[dict]:
         results = []
@@ -310,7 +319,7 @@ class AgentLoop:
         threshold = self.config["compaction"]["threshold_ratio"]
 
         if total_tokens > max_tokens * threshold:
-            print("\n📦 Compacting conversation history...")
+            self._emit("\n📦 Compacting conversation history...")
             self.messages = await compact_conversation(
                 self.messages,
                 self.llm,
@@ -318,4 +327,6 @@ class AgentLoop:
                 keep_recent=self.config["compaction"]["keep_recent"],
             )
             new_tokens = count_messages_tokens(self.messages)
-            print(f"   Compressed: {total_tokens} → {new_tokens} tokens\n")
+            self._emit(
+                f"   Compressed: {total_tokens} → {new_tokens} tokens\n"
+            )

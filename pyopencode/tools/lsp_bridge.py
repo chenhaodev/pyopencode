@@ -69,10 +69,11 @@ class LSPBridge:
             "method": method,
             "params": params,
         }
-        content = json.dumps(msg)
-        header = f"Content-Length: {len(content)}\r\n\r\n"
+        body = json.dumps(msg, ensure_ascii=False)
+        body_bytes = body.encode("utf-8")
+        header = f"Content-Length: {len(body_bytes)}\r\n\r\n".encode("ascii")
 
-        self.process.stdin.write((header + content).encode())
+        self.process.stdin.write(header + body_bytes)
         self.process.stdin.flush()
 
         return await self._read_response()
@@ -85,9 +86,13 @@ class LSPBridge:
         if not header_line.startswith("Content-Length:"):
             return {}
         length = int(header_line.split(":")[1].strip())
+        # Blank line after headers
         self.process.stdout.readline()
-        raw = self.process.stdout.read(length).decode()
-        return json.loads(raw)
+        raw = self.process.stdout.read(length).decode("utf-8")
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
 
     async def _initialize(self):
         await self._request(

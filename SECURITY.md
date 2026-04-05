@@ -50,6 +50,12 @@ If you must use `config.info.py`, ensure:
 
 Copy `config.info.example.py` to `config.info.py` and fill in your keys.
 
+**Global keys file:** You may also use `~/.pyopencode/config.info.py` (merged before the project’s `config.info.py`). Keep it out of any synced or public folder.
+
+### Local agent / IDE logs
+
+Files matching `*-STOP.txt` or similar session exports may contain **API key fragments** from shell history or env echoes. They are listed in `.gitignore`; do not commit them. If one was ever pushed, **rotate affected keys** and remove the file from history.
+
 ## Security Checklist
 
 Before committing:
@@ -57,6 +63,7 @@ Before committing:
 - [ ] `config.info.py` is in `.gitignore`
 - [ ] Environment variables are set properly
 - [ ] No hardcoded secrets in any `.py` files
+- [ ] No `*STOP*.txt` or other local agent logs staged
 - [ ] Run `git status` to verify no sensitive files are staged
 
 ## If You Accidentally Commit Keys

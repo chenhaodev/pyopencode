@@ -16,3 +16,7 @@ venv/
 # SECURITY: Never commit API keys
 config.info.py
 *.secret.py
+
+# Session / agent logs (may contain API key fragments)
+*-STOP.txt
+*STOP*.txt

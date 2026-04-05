@@ -1,4 +1,5 @@
 import os
+from collections.abc import Callable
 
 import litellm
 
@@ -15,6 +16,7 @@ class LLMClient:
         tools: list[dict] | None = None,
         model: str | None = None,
         stream: bool = True,
+        stream_sink: Callable[[str], None] | None = None,
     ) -> dict:
         model = model or self.config["model"]
         provider = self.config.get("provider", "anthropic")
@@ -44,13 +46,18 @@ class LLMClient:
                 kwargs["api_key"] = env_val
 
         if stream:
-            return await self._stream_chat(**kwargs)
+            return await self._stream_chat(stream_sink=stream_sink, **kwargs)
         else:
             response = await litellm.acompletion(**kwargs)
             self._track_usage(response.usage)
             return self._parse_response(response)
 
-    async def _stream_chat(self, **kwargs) -> dict:
+    async def _stream_chat(
+        self,
+        *,
+        stream_sink: Callable[[str], None] | None = None,
+        **kwargs,
+    ) -> dict:
         response = await litellm.acompletion(**kwargs)
 
         full_content = ""
@@ -61,13 +68,17 @@ class LLMClient:
 
             if delta.content:
                 full_content += delta.content
-                print(delta.content, end="", flush=True)
+                if stream_sink is not None:
+                    stream_sink(delta.content)
+                else:
+                    print(delta.content, end="", flush=True)
 
             if delta.tool_calls:
                 for tc in delta.tool_calls:
                     self._accumulate_tool_call(tool_calls, tc)
 
-        print()
+        if stream_sink is None:
+            print()
 
         if hasattr(response, "usage") and response.usage:
             self._track_usage(response.usage)

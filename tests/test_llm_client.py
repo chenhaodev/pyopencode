@@ -114,3 +114,41 @@ async def test_chat_passes_api_key_from_env(monkeypatch):
         await client.chat([{"role": "user", "content": "x"}], stream=False)
     ac.assert_awaited_once()
     assert ac.await_args.kwargs.get("api_key") == "sk-test-from-env"
+
+
+@pytest.mark.asyncio
+async def test_stream_sink_receives_content_chunks(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "x")
+    chunks: list[str] = []
+
+    async def fake_acomp(**kwargs):
+        async def agen():
+            mock_chunk = MagicMock()
+            mock_chunk.choices = [MagicMock()]
+            mock_chunk.choices[0].delta = MagicMock()
+            mock_chunk.choices[0].delta.content = "tok"
+            mock_chunk.choices[0].delta.tool_calls = None
+            yield mock_chunk
+
+        return agen()
+
+    config = {
+        "model": "gpt-4o-mini",
+        "provider": "openai",
+        "temperature": 0,
+        "max_tokens": 100,
+        "providers": {"openai": {"api_key_env": "OPENAI_API_KEY"}},
+    }
+    client = LLMClient(config)
+    with patch(
+        "pyopencode.llm.client.litellm.acompletion",
+        new_callable=AsyncMock,
+        side_effect=fake_acomp,
+    ):
+        out = await client.chat(
+            [{"role": "user", "content": "x"}],
+            stream=True,
+            stream_sink=chunks.append,
+        )
+    assert chunks == ["tok"]
+    assert out["content"] == "tok"
