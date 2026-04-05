@@ -31,7 +31,14 @@ DEFAULT_CONFIG = {
         },
     },
     "permissions": {
-        "always_allow": ["read_file", "glob_search", "grep_search", "todo_write"],
+        "always_allow": [
+            "read_file",
+            "glob_search",
+            "grep_search",
+            "todo_write",
+            "get_repomap",
+            "dispatch_subagents",
+        ],
         "allow_once_then_remember": ["write_file", "edit_file"],
         "always_ask": ["bash"],
     },
@@ -65,9 +72,13 @@ def load_config() -> dict:
             project_config = tomllib.load(f)
             deep_merge(config, project_config)
 
-    info_path = Path.cwd() / "config.info.py"
-    if info_path.exists():
-        _load_py_config(config, info_path)
+    home_info_path = Path.home() / ".pyopencode" / "config.info.py"
+    if home_info_path.exists():
+        _load_py_config(config, home_info_path)
+
+    cwd_info_path = Path.cwd() / "config.info.py"
+    if cwd_info_path.exists():
+        _load_py_config(config, cwd_info_path)
 
     _apply_api_keys(config)
     return config

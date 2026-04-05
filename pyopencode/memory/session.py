@@ -78,6 +78,20 @@ class SessionStore:
         _sid, msgs = self.load_latest_session(project_path)
         return msgs
 
+    def load_by_id(
+        self, session_id: str, project_path: str
+    ) -> Optional[list[dict]]:
+        cursor = self.conn.execute(
+            "SELECT project_path, messages FROM sessions WHERE id = ?",
+            (session_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        if row[0] != project_path:
+            return None
+        return json.loads(row[1])
+
     def list_sessions(
         self, project_path: Optional[str] = None, limit: int = 20
     ) -> list[dict]:

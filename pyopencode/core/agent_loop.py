@@ -1,6 +1,8 @@
 import json
 import uuid
+from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import Optional
 
 import pyopencode.tools.bash
 import pyopencode.tools.dispatch_subagent
@@ -9,6 +11,7 @@ import pyopencode.tools.git_tools
 import pyopencode.tools.glob_search
 import pyopencode.tools.grep_search
 import pyopencode.tools.read_file
+import pyopencode.tools.repomap_tool  # noqa: F401 - tool registration
 import pyopencode.tools.todo_write
 import pyopencode.tools.write_file  # noqa: F401 - imported for tool registration
 from pyopencode.llm.client import LLMClient
@@ -17,6 +20,8 @@ from pyopencode.memory.session import SessionStore
 from pyopencode.tools.dispatch_subagent import set_llm_instance
 from pyopencode.tools.permissions import PermissionManager
 from pyopencode.tools.registry import registry
+
+PermissionHandler = Callable[[str, dict], Awaitable[str]]
 
 SYSTEM_PROMPT = """You are PyOpenCode, an expert AI software engineer \
 operating in the user's terminal. You have direct access to the filesystem \
@@ -45,6 +50,7 @@ For complex tasks, follow this pattern:
 
 ## Parallel Work
 When you need to gather information from multiple files, use dispatch_subagents to read them in parallel.
+Use get_repomap for a quick AST skeleton of the Python tree when exploring structure.
 
 ## Communication Style
 - Start with a brief plan (1-3 sentences)
@@ -66,6 +72,9 @@ class AgentLoop:
         self._project_path = ""
         self._session_id = ""
         self._session_store: SessionStore | None = None
+        self._chat_stream = True
+        self._tool_echo: Optional[Callable[[str, dict], None]] = None
+        self._permission_handler: Optional[PermissionHandler] = None
 
     def _build_system_prompt(self) -> str:
         memory = load_memory()
@@ -90,37 +99,75 @@ class AgentLoop:
             self.messages,
         )
 
-    async def run(self, initial_prompt: str = None, resume: bool = False):
-        print("🤖 PyOpenCode ready. Type 'exit' to quit, 'clear' to reset.\n")
-
+    def _setup_session(
+        self,
+        *,
+        resume_latest: bool = False,
+        resume_session_id: Optional[str] = None,
+    ) -> None:
         self._project_path = str(Path.cwd().resolve())
         session_cfg = self.config.get("session", {})
         session_enabled = session_cfg.get("enabled", True)
         self._session_store = SessionStore() if session_enabled else None
-
         self._session_id = str(uuid.uuid4())
-        if session_enabled and self._session_store and resume:
+
+        if not session_enabled or not self._session_store:
+            self.messages = [
+                {"role": "system", "content": self._build_system_prompt()}
+            ]
+            return
+
+        loaded: Optional[list[dict]] = None
+        sid: Optional[str] = None
+
+        if resume_session_id:
+            loaded = self._session_store.load_by_id(
+                resume_session_id, self._project_path
+            )
+            if loaded is not None:
+                sid = resume_session_id
+            else:
+                print(
+                    f"No session '{resume_session_id}' for this project. "
+                    "Starting fresh.\n"
+                )
+        elif resume_latest:
             sid, loaded = self._session_store.load_latest_session(
                 self._project_path
             )
-            if sid is not None and loaded is not None:
-                self._session_id = sid
-                self.messages = list(loaded)
-                self._refresh_system_prompt_in_messages()
-            else:
+            if sid is None or loaded is None:
                 print(
                     "No saved session for this project. Starting fresh.\n"
                 )
-                self.messages = [
-                    {
-                        "role": "system",
-                        "content": self._build_system_prompt(),
-                    }
-                ]
+
+        if loaded is not None and sid is not None:
+            self._session_id = sid
+            self.messages = list(loaded)
+            self._refresh_system_prompt_in_messages()
         else:
             self.messages = [
                 {"role": "system", "content": self._build_system_prompt()}
             ]
+
+    def clear_conversation(self) -> None:
+        self._session_id = str(uuid.uuid4())
+        self.messages = [
+            {"role": "system", "content": self._build_system_prompt()}
+        ]
+        self._save_session()
+
+    async def run(
+        self,
+        initial_prompt: str = None,
+        resume: bool = False,
+        resume_session_id: Optional[str] = None,
+    ):
+        print("🤖 PyOpenCode ready. Type 'exit' to quit, 'clear' to reset.\n")
+
+        self._setup_session(
+            resume_latest=resume and resume_session_id is None,
+            resume_session_id=resume_session_id,
+        )
 
         try:
             if initial_prompt:
@@ -138,14 +185,7 @@ class AgentLoop:
                 if user_input.lower() == "exit":
                     break
                 if user_input.lower() == "clear":
-                    self._session_id = str(uuid.uuid4())
-                    self.messages = [
-                        {
-                            "role": "system",
-                            "content": self._build_system_prompt(),
-                        }
-                    ]
-                    self._save_session()
+                    self.clear_conversation()
                     print("Conversation cleared.")
                     continue
                 if user_input.lower() == "cost":
@@ -170,6 +210,7 @@ class AgentLoop:
             response = await self.llm.chat(
                 messages=self.messages,
                 tools=registry.get_schemas(),
+                stream=self._chat_stream,
             )
 
             assistant_msg: dict = {"role": "assistant"}
@@ -211,12 +252,20 @@ class AgentLoop:
                 args = {}
 
             if not self.permissions.check(name, args):
-                prompt = self.permissions.format_request(name, args)
-                print(prompt, end="")
-                try:
-                    answer = input().strip().lower()
-                except (EOFError, KeyboardInterrupt):
-                    answer = "n"
+                if self._permission_handler:
+                    try:
+                        answer = (
+                            await self._permission_handler(name, args)
+                        ).strip().lower()
+                    except (EOFError, KeyboardInterrupt):
+                        answer = "n"
+                else:
+                    prompt = self.permissions.format_request(name, args)
+                    print(prompt, end="")
+                    try:
+                        answer = input().strip().lower()
+                    except (EOFError, KeyboardInterrupt):
+                        answer = "n"
 
                 if answer in ("y", "yes"):
                     self.permissions.approve(name)
@@ -232,7 +281,11 @@ class AgentLoop:
                     )
                     continue
 
-            print(f"  🔧 {name}({json.dumps(args, ensure_ascii=False)[:100]})")
+            preview = json.dumps(args, ensure_ascii=False)[:100]
+            if self._tool_echo:
+                self._tool_echo(name, args)
+            else:
+                print(f"  🔧 {name}({preview})")
             result = await registry.execute(name, args)
 
             if len(result) > 20000:

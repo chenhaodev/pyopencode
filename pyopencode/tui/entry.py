@@ -1,0 +1,28 @@
+"""Launch the Textual UI (optional extra: pip install 'pyopencode[tui]')."""
+
+import asyncio
+
+from pyopencode.core.agent_loop import AgentLoop
+from pyopencode.tui.app import PyOpenCodeApp
+
+
+def run_tui(
+    config: dict,
+    initial_prompt: str | None,
+    resume_latest: bool,
+    resume_session_id: str | None,
+) -> None:
+    async def _run() -> None:
+        agent = AgentLoop(config)
+        agent._setup_session(
+            resume_latest=resume_latest and resume_session_id is None,
+            resume_session_id=resume_session_id,
+        )
+        agent._chat_stream = False
+        app = PyOpenCodeApp(
+            agent_loop=agent,
+            initial_prompt=initial_prompt,
+        )
+        await app.run_async()
+
+    asyncio.run(_run())

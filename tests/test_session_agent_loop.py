@@ -121,3 +121,55 @@ def test_load_latest_session_returns_id_and_messages(tmp_path, monkeypatch):
     assert sid == "sid-1"
     assert msgs is not None
     assert len(msgs) == 2
+
+
+def test_load_by_id_requires_matching_project(tmp_path, monkeypatch):
+    monkeypatch.setattr("pyopencode.memory.session.DB_PATH", tmp_path / "x.db")
+    store = SessionStore()
+    store.save(
+        "sid-x",
+        "/correct/proj",
+        [{"role": "user", "content": "u"}],
+    )
+    assert store.load_by_id("sid-x", "/correct/proj") is not None
+    assert store.load_by_id("sid-x", "/other/proj") is None
+    assert store.load_by_id("missing", "/correct/proj") is None
+
+
+@pytest.mark.asyncio
+async def test_resume_specific_session_id(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "pyopencode.memory.session.DB_PATH",
+        tmp_path / "sess.db",
+    )
+    from pyopencode.core.agent_loop import AgentLoop
+
+    store = SessionStore()
+    sid = "fixed-session-id"
+    proj = str(tmp_path.resolve())
+    store.save(
+        sid,
+        proj,
+        [
+            {"role": "system", "content": "old"},
+            {"role": "user", "content": "prior"},
+        ],
+    )
+
+    loop = AgentLoop(_minimal_config())
+    loop.llm.chat = AsyncMock(
+        return_value={"content": "ok", "tool_calls": None}
+    )
+    with patch("builtins.input", side_effect=EOFError):
+        await loop.run(
+            initial_prompt="next",
+            resume=False,
+            resume_session_id=sid,
+        )
+
+    _sid, msgs = store.load_latest_session(proj)
+    assert _sid == sid
+    user_msgs = [m["content"] for m in msgs if m["role"] == "user"]
+    assert "prior" in user_msgs
+    assert "next" in user_msgs

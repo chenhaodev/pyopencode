@@ -72,6 +72,20 @@ async def test_subagent_runs_tool_then_finishes():
 
 
 @pytest.mark.asyncio
+async def test_get_repomap_tool_registered(tmp_path):
+    import pyopencode.tools.repomap_tool  # noqa: F401
+    from pyopencode.tools.registry import registry
+
+    (tmp_path / "a.py").write_text("def foo():\n    pass\n", encoding="utf-8")
+    out = await registry.execute(
+        "get_repomap",
+        {"root": str(tmp_path), "extensions": [".py"]},
+    )
+    assert "foo" in out
+    assert "a.py" in out
+
+
+@pytest.mark.asyncio
 async def test_dispatch_subagents_formats_output():
     from pyopencode.tools.dispatch_subagent import (
         dispatch_subagents,
