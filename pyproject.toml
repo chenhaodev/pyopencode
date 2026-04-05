@@ -1,6 +1,8 @@
 [project]
 name = "pyopencode"
 version = "0.1.0"
+description = "Lightweight terminal AI coding agent (Claude, GPT, Gemini, Qwen, SiliconFlow)."
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "click>=8.0",
@@ -10,11 +12,18 @@ dependencies = [
 [project.scripts]
 pyopencode = "pyopencode.main:main"
 
+[project.urls]
+Changelog = "https://github.com/chenhaodev/pyopencode/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/chenhaodev/pyopencode"
+Repository = "https://github.com/chenhaodev/pyopencode"
+
 [project.optional-dependencies]
 dev = [
+    "pre-commit==4.5.1",
     "pytest==8.3.4",
     "pytest-asyncio==0.24.0",
     "ruff==0.9.5",
+    "textual==8.2.2",
 ]
 tui = ["textual>=0.50"]
 lsp = []
@@ -32,6 +41,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = [
     "integration: requires external tools (e.g. pyright-langserver); opt-in via env",
+    "tui: Textual Pilot tests (needs textual; included in dev extras)",
 ]
 
 [tool.ruff]

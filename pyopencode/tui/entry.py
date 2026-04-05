@@ -1,4 +1,4 @@
-"""Launch the Textual UI (optional extra: pip install 'pyopencode[tui]')."""
+"""Launch the Textual UI (optional extra: uv pip or pip install 'pyopencode[tui]')."""
 
 import asyncio
 

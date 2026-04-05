@@ -5,6 +5,7 @@ import click
 
 from pyopencode.config import load_config
 from pyopencode.core.agent_loop import AgentLoop
+from pyopencode.tui.install_hint import TUI_EXTRA_PIP
 
 
 @click.command()
@@ -26,7 +27,7 @@ from pyopencode.core.agent_loop import AgentLoop
 @click.option(
     "--tui",
     is_flag=True,
-    help="Run Textual TUI (requires: pip install 'pyopencode[tui]')",
+    help="Run Textual TUI (optional [tui]; uv pip or pip — see README)",
 )
 @click.argument("initial_prompt", required=False)
 def main(
@@ -66,9 +67,7 @@ def main(
         try:
             from pyopencode.tui.entry import run_tui
         except ImportError as exc:
-            raise click.ClickException(
-                "Textual is not installed. Run: pip install 'pyopencode[tui]'"
-            ) from exc
+            raise click.ClickException(TUI_EXTRA_PIP) from exc
         run_tui(
             config,
             initial_prompt,

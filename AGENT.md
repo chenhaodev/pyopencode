@@ -8,7 +8,7 @@ PyOpenCode is a Python-based lightweight AI coding agent built in 4 phases.
 - `pyopencode/llm/` — LLMClient (litellm), providers config, token counting
 - `pyopencode/tools/` — ToolRegistry, permissions, all tool implementations
 - `pyopencode/memory/` — AGENT.md I/O, SQLite sessions, repomap (AST)
-- `pyopencode/tui/` — Textual TUI (optional, requires `pip install pyopencode[tui]`)
+- `pyopencode/tui/` — Textual TUI (optional: `uv pip install -e '.[tui]'` or `pip install -e '.[tui]'` from clone)
 - `pyopencode/utils/` — truncate, diff, project detection
 
 ## Key Design Decisions
@@ -22,13 +22,15 @@ PyOpenCode is a Python-based lightweight AI coding agent built in 4 phases.
 
 ## Running
 ```bash
-pip install -e .
+uv pip install -e .
+# or: pip install -e .
 pyopencode "your task here"
 pyopencode --model gpt-4o --provider openai
 ```
 
 ## Testing
 ```bash
-pip install -e ".[dev]"
+uv pip install -e ".[dev]"
+# or: pip install -e ".[dev]"
 pytest tests/
 ```

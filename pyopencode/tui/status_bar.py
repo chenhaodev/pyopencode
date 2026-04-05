@@ -1,7 +1,9 @@
+from pyopencode.tui.install_hint import TUI_EXTRA_PIP
+
 try:
     from textual.widgets import Static
-except ImportError:
-    raise ImportError("Install textual: pip install 'pyopencode[tui]'")
+except ImportError as exc:
+    raise ImportError(TUI_EXTRA_PIP) from exc
 
 
 class StatusBar(Static):
