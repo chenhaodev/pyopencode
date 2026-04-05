@@ -1,6 +1,3 @@
-import json
-
-
 def count_messages_tokens(messages: list[dict]) -> int:
     total = 0
     for msg in messages:

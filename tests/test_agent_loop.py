@@ -1,6 +1,4 @@
 import pytest
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from pyopencode.tools.permissions import PermissionManager
 

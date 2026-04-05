@@ -40,7 +40,7 @@ DEFAULT_CONFIG = {
             "dispatch_subagents",
         ],
         "allow_once_then_remember": ["write_file", "edit_file"],
-        "always_ask": ["bash"],
+        "always_ask": ["bash", "lsp_goto_definition"],
     },
     "compaction": {
         "threshold_ratio": 0.85,

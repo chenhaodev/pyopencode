@@ -1,7 +1,8 @@
 """Integration tests for SessionStore wired into AgentLoop (--resume / save)."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from pyopencode.core.agent_loop import AgentLoop
 from pyopencode.memory.session import SessionStore

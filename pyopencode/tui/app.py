@@ -1,11 +1,11 @@
 import json
 
 try:
+    from rich.text import Text
     from textual.app import App, ComposeResult
     from textual.binding import Binding
     from textual.message import Message
     from textual.widgets import Footer, Header, Input, RichLog, Static
-    from rich.text import Text
 except ImportError as exc:
     raise ImportError(
         "Install textual: pip install 'pyopencode[tui]'"
@@ -19,7 +19,7 @@ class CompactRequested(Message):
 
 
 class PyOpenCodeApp(App):
-    """Textual front-end: streaming assistant line, modal permissions, UI log."""
+    """Textual front-end: streaming assistant, tools, errors in RichLog."""
 
     CSS = """
     #chat-log {
@@ -29,7 +29,7 @@ class PyOpenCodeApp(App):
     }
     #stream-live {
         min-height: 1;
-        max-height: 6;
+        max-height: 8;
         padding: 0 1;
         color: $text;
         background: $surface;
@@ -57,6 +57,7 @@ class PyOpenCodeApp(App):
         self.agent_loop = agent_loop
         self.initial_prompt = initial_prompt
         self._streaming_buf = ""
+        self._stream_received = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -77,6 +78,23 @@ class PyOpenCodeApp(App):
 
     def _reset_stream_panel(self) -> None:
         self._streaming_buf = ""
+        self._stream_received = False
+        try:
+            self.query_one("#stream-live", Static).update("")
+        except Exception:
+            pass
+
+    def _show_thinking(self) -> None:
+        try:
+            self.query_one("#stream-live", Static).update(
+                Text("正在思考…", style="italic dim")
+            )
+        except Exception:
+            pass
+
+    def _clear_thinking_if_no_stream(self) -> None:
+        if self._stream_received:
+            return
         try:
             self.query_one("#stream-live", Static).update("")
         except Exception:
@@ -84,6 +102,8 @@ class PyOpenCodeApp(App):
 
     def _make_stream_sink(self):
         def sink(chunk: str) -> None:
+            if chunk:
+                self._stream_received = True
             self._streaming_buf += chunk
             line = Text()
             line.append("Assistant: ", style="bold green")
@@ -98,7 +118,12 @@ class PyOpenCodeApp(App):
             text = msg.rstrip("\n")
             for part in text.split("\n"):
                 if part:
-                    log.write(f"[bold yellow]{part}[/]")
+                    if part.startswith("❌") or "error" in part.lower():
+                        log.write(f"[red]{part}[/red]")
+                    elif part.startswith("🔐"):
+                        log.write(f"[bold yellow]{part}[/bold yellow]")
+                    else:
+                        log.write(f"[bold yellow]{part}[/bold yellow]")
 
         return notify
 
@@ -109,9 +134,19 @@ class PyOpenCodeApp(App):
             preview = json.dumps(args, ensure_ascii=False)[:120]
             log.write(f"  [dim]🔧 {name}({preview})[/dim]")
 
+        def tool_result_echo(name: str, preview: str) -> None:
+            one_line = preview.replace("\n", " ")[:220]
+            if preview.lstrip().startswith("Error"):
+                log.write(f"  [red]→ {name}: {one_line}[/red]")
+            else:
+                log.write(f"  [dim]→ {name}: {one_line}[/dim]")
+
         self.agent_loop._tool_echo = tool_echo
+        self.agent_loop._tool_result_echo = tool_result_echo
         self.agent_loop._stream_sink = self._make_stream_sink()
         self.agent_loop._notify = self._make_notify()
+        self.agent_loop._llm_idle_hook = self._show_thinking
+        self.agent_loop._llm_busy_hook = self._clear_thinking_if_no_stream
         self.agent_loop._chat_stream = True
 
         async def perm(name: str, args: dict) -> str:
@@ -142,12 +177,17 @@ class PyOpenCodeApp(App):
 
     def _log_last_assistant(self) -> None:
         log = self.query_one("#chat-log", RichLog)
-        self.query_one("#stream-live", Static).update("")
-        self._streaming_buf = ""
         for msg in reversed(self.agent_loop.messages):
             if msg.get("role") != "assistant":
                 continue
             text = (msg.get("content") or "").strip()
+            streamed = self._streaming_buf.strip()
+            if text and streamed and text == streamed:
+                self._reset_stream_panel()
+                return
+            self.query_one("#stream-live", Static).update("")
+            self._streaming_buf = ""
+            self._stream_received = False
             if text:
                 log.write(f"[bold green]Assistant:[/] {text}")
             elif msg.get("tool_calls"):

@@ -1,8 +1,9 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from pyopencode.llm.client import LLMClient
-from pyopencode.llm.token_counter import count_messages_tokens, _estimate_tokens
+from pyopencode.llm.token_counter import _estimate_tokens, count_messages_tokens
 
 
 class TestTokenCounter:

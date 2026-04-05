@@ -1,6 +1,5 @@
 import os
 
-
 PROVIDER_PREFIXES = {
     "anthropic": "",
     "openai": "",

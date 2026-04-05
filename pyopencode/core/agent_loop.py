@@ -10,6 +10,7 @@ import pyopencode.tools.edit_file
 import pyopencode.tools.git_tools
 import pyopencode.tools.glob_search
 import pyopencode.tools.grep_search
+import pyopencode.tools.lsp_tool  # noqa: F401 - tool registration
 import pyopencode.tools.read_file
 import pyopencode.tools.repomap_tool  # noqa: F401 - tool registration
 import pyopencode.tools.todo_write
@@ -76,6 +77,9 @@ class AgentLoop:
         self._stream_sink: Optional[Callable[[str], None]] = None
         self._notify: Optional[Callable[[str], None]] = None
         self._tool_echo: Optional[Callable[[str, dict], None]] = None
+        self._tool_result_echo: Optional[Callable[[str, str], None]] = None
+        self._llm_idle_hook: Optional[Callable[[], None]] = None
+        self._llm_busy_hook: Optional[Callable[[], None]] = None
         self._permission_handler: Optional[PermissionHandler] = None
 
     def _emit(self, message: str) -> None:
@@ -210,17 +214,29 @@ class AgentLoop:
 
     async def _process_user_input(self, user_input: str):
         self.messages.append({"role": "user", "content": user_input})
-        await self._agent_loop()
+        try:
+            await self._agent_loop()
+        except Exception as exc:
+            self._emit(f"\n❌ Agent error: {type(exc).__name__}: {exc}\n")
         self._save_session()
 
     async def _agent_loop(self):
         for iteration in range(self.max_iterations):
-            response = await self.llm.chat(
-                messages=self.messages,
-                tools=registry.get_schemas(),
-                stream=self._chat_stream,
-                stream_sink=self._stream_sink if self._chat_stream else None,
-            )
+            if self._llm_idle_hook:
+                self._llm_idle_hook()
+            try:
+                response = await self.llm.chat(
+                    messages=self.messages,
+                    tools=registry.get_schemas(),
+                    stream=self._chat_stream,
+                    stream_sink=self._stream_sink if self._chat_stream else None,
+                )
+            except Exception as exc:
+                self._emit(f"\n❌ LLM error: {type(exc).__name__}: {exc}\n")
+                break
+            finally:
+                if self._llm_busy_hook:
+                    self._llm_busy_hook()
 
             assistant_msg: dict = {"role": "assistant"}
             if response["content"]:
@@ -270,7 +286,10 @@ class AgentLoop:
                         answer = "n"
                 else:
                     prompt = self.permissions.format_request(name, args)
-                    print(prompt, end="")
+                    if self._notify:
+                        self._notify(prompt)
+                    else:
+                        print(prompt, end="")
                     try:
                         answer = input().strip().lower()
                     except (EOFError, KeyboardInterrupt):
@@ -293,9 +312,16 @@ class AgentLoop:
             preview = json.dumps(args, ensure_ascii=False)[:100]
             if self._tool_echo:
                 self._tool_echo(name, args)
+            elif self._notify:
+                self._notify(f"  🔧 {name}({preview})")
             else:
                 print(f"  🔧 {name}({preview})")
             result = await registry.execute(name, args)
+
+            if self._tool_result_echo:
+                cap = 480
+                prev = result if len(result) <= cap else result[:cap] + "…"
+                self._tool_result_echo(name, prev)
 
             if len(result) > 20000:
                 result = result[:10000] + "\n...(truncated)...\n" + result[-10000:]
@@ -311,8 +337,8 @@ class AgentLoop:
         return results
 
     async def _maybe_compact(self):
-        from pyopencode.llm.token_counter import count_messages_tokens
         from pyopencode.core.compaction import compact_conversation
+        from pyopencode.llm.token_counter import count_messages_tokens
 
         total_tokens = count_messages_tokens(self.messages)
         max_tokens = self.config.get("max_context_tokens", 200000)

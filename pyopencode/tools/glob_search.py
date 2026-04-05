@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from pyopencode.tools.registry import registry
 
 _IGNORE_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", ".tox"}

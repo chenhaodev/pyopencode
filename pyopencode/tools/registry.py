@@ -1,5 +1,5 @@
 import json
-from typing import Callable, Any
+from typing import Callable
 
 
 class ToolRegistry:

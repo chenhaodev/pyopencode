@@ -1,4 +1,5 @@
 import subprocess
+
 from pyopencode.tools.registry import registry
 from pyopencode.utils.truncate import truncate_output
 

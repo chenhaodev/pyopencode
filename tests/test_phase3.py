@@ -1,7 +1,8 @@
 """Phase 3: repomap, SubAgent, dispatch_subagents (LLM mocked)."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from pyopencode.memory.repomap import generate_repomap
 

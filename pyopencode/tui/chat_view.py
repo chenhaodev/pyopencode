@@ -1,6 +1,5 @@
 try:
     from textual.widgets import RichLog
-    from textual.app import ComposeResult
 except ImportError:
     raise ImportError("Install textual: pip install 'pyopencode[tui]'")
 

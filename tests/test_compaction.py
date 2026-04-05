@@ -1,9 +1,10 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from pyopencode.core.compaction import (
-    compact_conversation,
     _format_messages_for_summary,
+    compact_conversation,
 )
 
 

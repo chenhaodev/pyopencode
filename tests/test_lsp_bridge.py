@@ -24,6 +24,8 @@ async def test_request_uses_utf8_byte_length_for_content_length():
     proc = MagicMock()
     proc.stdin = stdin
     proc.stdout = stdout
+    proc.stderr = io.BytesIO()
+    proc.poll = MagicMock(return_value=None)
 
     bridge = LSPBridge("python", "/tmp/proj")
     bridge._request_id = 0
@@ -48,12 +50,39 @@ async def test_request_uses_utf8_byte_length_for_content_length():
 
 
 @pytest.mark.asyncio
+async def test_request_skips_notification_before_matching_id():
+    notif = {
+        "jsonrpc": "2.0",
+        "method": "window/logMessage",
+        "params": {"type": 3, "message": "hello"},
+    }
+    resp = {"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}}
+    stdout = io.BytesIO(_framed_response(notif) + _framed_response(resp))
+
+    proc = MagicMock()
+    proc.stdin = io.BytesIO()
+    proc.stdout = stdout
+    proc.stderr = io.BytesIO()
+    proc.poll = MagicMock(return_value=None)
+
+    bridge = LSPBridge("python", "/tmp")
+    bridge._request_id = 0
+    bridge.process = proc
+
+    out = await bridge._request("initialize", {"rootUri": "file:///tmp"})
+    assert out.get("id") == 1
+    assert out["result"]["capabilities"] == {}
+
+
+@pytest.mark.asyncio
 async def test_read_response_invalid_json_returns_empty_dict():
     bad = b"Content-Length: 2\r\n\r\nxx"
     stdout = io.BytesIO(bad)
     proc = MagicMock()
     proc.stdin = io.BytesIO()
     proc.stdout = stdout
+    proc.stderr = io.BytesIO()
+    proc.poll = MagicMock(return_value=None)
     bridge = LSPBridge("python", ".")
     bridge._request_id = 0
     bridge.process = proc
