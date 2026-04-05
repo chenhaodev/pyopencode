@@ -18,12 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `lsp_goto_definition` reuses the pooled language server per workspace.
+- README: tighter structure; PyPI install; move dev/CI/LSP detail to
+  CONTRIBUTING and other linked docs; English only; drop duplicate summary.
+- README: clarify config is optional layered files (not “four configs” required).
+- README: minimal layout; LSP/pyright notes moved to CONTRIBUTING.
+- ROADMAP, SECURITY, TASK: shortened; TASK no longer embeds large code/prompt
+  drafts (see source tree).
+- SECURITY: drop `config.info.py` guidance; align with TOML + env keys.
 
 ### Removed
 
 - Root `test_phase2_e2e.py` (manual Phase 2 script; coverage lives in `tests/`).
-- `config.info.example.py`; use TOML + env vars (SECURITY.md) or a local
-  `config.info.py` as documented in README.
+- `config.info.example.py` (sample overlay).
+- Loading `~/.pyopencode/config.info.py` and `./config.info.py`: configuration
+  is built-in defaults + TOML + environment API keys only.
 
 ## [0.1.0]
 

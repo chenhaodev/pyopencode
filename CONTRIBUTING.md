@@ -48,6 +48,9 @@ export PYOPENCODE_RUN_LSP_INTEGRATION=1
 pytest tests/test_lsp_integration.py -q -m integration
 ```
 
+**LSP / pyright：** Agent 工具 `lsp_goto_definition`、`lsp_find_references` 依赖本机
+language server（如 Python 的 `pyright-langserver --stdio`）。若 shim 异常或找不到可执行文件，可设置环境变量 **`PYOPENCODE_PYRIGHT_JS`** 为 npm 包 `pyright` 里 **`pyright-langserver.js` 的绝对路径**（需 `node` 在 `PATH`）。每个 workspace 复用一条连接，直至进程结束。
+
 ## pre-commit（可选）
 
 `[dev]` 已包含 **pre-commit**。在暂存文件上跑 **ruff**（与 CI 全量检查互补）：

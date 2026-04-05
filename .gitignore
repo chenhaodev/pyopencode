@@ -13,7 +13,7 @@ venv/
 *.sqlite
 *.db
 
-# SECURITY: Never commit API keys
+# Legacy local file name (no longer loaded); keep ignored if it still exists
 config.info.py
 *.secret.py
 

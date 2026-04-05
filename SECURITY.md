@@ -1,77 +1,28 @@
-# Security Guidelines for PyOpenCode
+# Security
 
-## API Key Management
+## API keys
 
-### ⚠️ CRITICAL: Never Commit API Keys
+Do **not** commit keys or tokens. Prefer **environment variables**:
 
-**config.info.py is in .gitignore** - this file should NEVER be committed to version control.
+| Provider | Typical env var |
+|----------|-----------------|
+| Anthropic | `ANTHROPIC_API_KEY` |
+| OpenAI | `OPENAI_API_KEY` |
+| Gemini | `GEMINI_API_KEY` |
+| Qwen (DashScope) | `DASHSCOPE_API_KEY` |
+| SiliconFlow | `SILICONFLOW_API_KEY` |
 
-### Recommended Setup
+Optional `~/.pyopencode/config.toml` or `.pyopencode.toml` should use
+`api_key_env = "NAME_OF_VAR"` (not literal secrets). Skip secret literals in
+`.pyopencode.toml` if the repo is public or shared.
 
-**Option 1: Environment Variables (RECOMMENDED)**
+## Before `git commit`
 
-Set these in your shell profile (`~/.zshrc`, `~/.bashrc`, etc.):
+- No secrets in tracked files or staged `.toml`.
+- `git status` clean of ignored log files.
 
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-export OPENAI_API_KEY="sk-proj-..."
-export GEMINI_API_KEY="AIza..."
-export DASHSCOPE_API_KEY="sk-..."
-export SILICONFLOW_API_KEY="sk-..."
-```
+## Keys committed by mistake
 
-Then use the default config in `~/.pyopencode/config.toml`:
-
-```toml
-[providers.anthropic]
-api_key_env = "ANTHROPIC_API_KEY"
-
-[providers.openai]
-api_key_env = "OPENAI_API_KEY"
-
-[providers.gemini]
-api_key_env = "GEMINI_API_KEY"
-
-[providers.qwen]
-api_key_env = "DASHSCOPE_API_KEY"
-api_base = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-
-[providers.siliconflow]
-api_key_env = "SILICONFLOW_API_KEY"
-api_base = "https://api.siliconflow.cn/v1"
-```
-
-**Option 2: Local config.info.py (USE WITH CAUTION)**
-
-If you must use `config.info.py`, ensure:
-1. It's listed in `.gitignore` ✅
-2. File permissions are restrictive: `chmod 600 config.info.py`
-3. Never share this file or commit it
-
-Create `config.info.py` in the project root (or `~/.pyopencode/config.info.py`)
-with a top-level `DEFAULT_CONFIG` dict. Match the shape of built-in defaults in
-`pyopencode/config.py` and README “Config merge order”; use `api_key_env` fields
-that name environment variables instead of embedding secret literals.
-
-**Global keys file:** You may also use `~/.pyopencode/config.info.py` (merged before the project’s `config.info.py`). Keep it out of any synced or public folder.
-
-### Local agent / IDE logs
-
-Files matching `*-STOP.txt` or similar session exports may contain **API key fragments** from shell history or env echoes. They are listed in `.gitignore`; do not commit them. If one was ever pushed, **rotate affected keys** and remove the file from history.
-
-## Security Checklist
-
-Before committing:
-- [ ] No API keys in source code
-- [ ] `config.info.py` is in `.gitignore`
-- [ ] Environment variables are set properly
-- [ ] No hardcoded secrets in any `.py` files
-- [ ] No `*STOP*.txt` or other local agent logs staged
-- [ ] Run `git status` to verify no sensitive files are staged
-
-## If You Accidentally Commit Keys
-
-1. **IMMEDIATELY** rotate all exposed API keys
-2. Remove from git history: `git filter-branch` or `BFG Repo-Cleaner`
-3. Check if the repository was pushed to remote
-4. If pushed publicly, assume keys are compromised
+1. Rotate every exposed key immediately.  
+2. Remove from history (`git filter-repo`, BFG, etc.).  
+3. Assume compromise if the remote was public.

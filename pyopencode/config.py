@@ -1,4 +1,3 @@
-import importlib.util
 import os
 import tomllib
 from pathlib import Path
@@ -76,26 +75,8 @@ def load_config() -> dict:
             project_config = tomllib.load(f)
             deep_merge(config, project_config)
 
-    home_info_path = Path.home() / ".pyopencode" / "config.info.py"
-    if home_info_path.exists():
-        _load_py_config(config, home_info_path)
-
-    cwd_info_path = Path.cwd() / "config.info.py"
-    if cwd_info_path.exists():
-        _load_py_config(config, cwd_info_path)
-
     _apply_api_keys(config)
     return config
-
-
-def _load_py_config(config: dict, path: Path):
-    spec = importlib.util.spec_from_file_location("_config_info", path)
-    if spec is None or spec.loader is None:
-        return
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    if hasattr(mod, "DEFAULT_CONFIG"):
-        deep_merge(config, mod.DEFAULT_CONFIG)
 
 
 def _apply_api_keys(config: dict):
