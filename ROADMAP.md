@@ -21,7 +21,7 @@ Short status vs the phase plan in [`TASK.md`](TASK.md). Release notes:
 ## Later
 
 - Tool timeouts, cancellation, retries; safer bash policy.
-- Richer repomap (e.g. tree-sitter); optional `lsp` extra deps.
+- Richer repomap (e.g. tree-sitter); optional LSP-related packaged deps.
 - MCP or other tool buses; TUI diff preview.
 
 Contributors: open an issue or PR scoped to one item above; keep this file in sync when scope shifts.

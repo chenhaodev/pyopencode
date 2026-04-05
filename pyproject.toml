@@ -3,6 +3,7 @@ name = "pyopencode"
 version = "0.1.0"
 description = "Lightweight terminal AI coding agent (Claude, GPT, Gemini, Qwen, SiliconFlow)."
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = [
     "click>=8.0",
@@ -27,11 +28,13 @@ dev = [
     "textual==8.2.2",
 ]
 tui = ["textual>=0.50"]
-lsp = []
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
 where = ["."]

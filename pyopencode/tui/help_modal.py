@@ -12,23 +12,25 @@ except ImportError as exc:
     raise ImportError(TUI_EXTRA_PIP) from exc
 
 _HELP_BODY = """
-[bold]会话[/]
-  • 在底部输入框输入后按 Enter 发送
+[bold]会话（类聊天）[/]
+  • 底部为 [bold]多行输入框[/]：[cyan]Enter[/] 换行；[cyan]Ctrl+Enter[/] 或 [cyan]Send[/] 发送
+  • 用户 / 助手消息为带时间戳的 [dim]Panel[/]；助手正文尽量用 Markdown 渲染
+  • 中间窄条为当前轮 [cyan]流式输出[/]（“typing…”）
   • 危险工具会弹出权限对话框（允许一次 / 始终允许 / 拒绝）
 
 [bold]快捷键[/]
   [cyan]F1[/]              打开本帮助
+  [cyan]Ctrl+Enter[/]     发送输入框内容
   [cyan]Ctrl+Shift+G[/]   焦点切到聊天日志（再按 Tab 可回到输入框）
   [cyan]Ctrl+L[/]         清空聊天记录与当前对话上下文
   [cyan]Ctrl+K[/]         触发上下文压缩（节省 tokens）
   [cyan]Ctrl+C[/]         退出应用
 
 [bold]界面[/]
-  • 上方大块为历史；中间窄条为当前轮次流式输出
+  • 上方为对话历史（自动滚动）；工具调用与结果为分块 Panel（错误为红框）
   • 日志聚焦时可用 [cyan]PgUp / PgDn[/]、方向键滚动
-  • 每次工具调用与结果合并为一块 [dim]Panel[/]（错误为红框）
   • 底部状态栏显示模型与 token / 估算费用
-  • 过长工具结果会在日志中截断并标注省略字符数
+  • 过长内容会在日志中截断并标注省略字符数
 """.strip()
 
 

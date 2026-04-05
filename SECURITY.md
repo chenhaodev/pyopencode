@@ -16,9 +16,15 @@ Optional `~/.pyopencode/config.toml` or `.pyopencode.toml` should use
 `api_key_env = "NAME_OF_VAR"` (not literal secrets). Skip secret literals in
 `.pyopencode.toml` if the repo is public or shared.
 
+**`pyopencode auth login`** stores keys in **`~/.pyopencode/credentials.json`**
+(Unix mode `0600`). That path is under your home directory, not the git tree;
+do not copy it into a repo or a synced folder.
+
 ## Before `git commit`
 
 - No secrets in tracked files or staged `.toml`.
+- No `*STOP*.txt` (or similar agent exports) staged—they may contain key
+  fragments.
 - `git status` clean of ignored log files.
 
 ## Keys committed by mistake

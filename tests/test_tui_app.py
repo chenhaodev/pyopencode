@@ -6,7 +6,7 @@ import pytest
 
 pytest.importorskip("textual")
 
-from textual.widgets import Input, RichLog
+from textual.widgets import RichLog, TextArea
 
 from pyopencode.tui.app import PyOpenCodeApp, _truncate_log_text
 from pyopencode.tui.help_modal import HelpModal
@@ -26,12 +26,18 @@ class StubAgent:
         )
         self.config = {"model": "stub-model"}
         self.clear_count = 0
+        self.seen_inputs: list[str] = []
 
     def _save_session(self) -> None:
         pass
 
     async def _maybe_compact(self) -> None:
         pass
+
+    async def _process_user_input(self, text: str) -> None:
+        self.seen_inputs.append(text)
+        self.messages.append({"role": "user", "content": text})
+        self.messages.append({"role": "assistant", "content": f"echo:{text}"})
 
     def clear_conversation(self) -> None:
         self.clear_count += 1
@@ -68,7 +74,7 @@ async def test_ctrl_shift_g_focuses_chat_log() -> None:
     app = PyOpenCodeApp(StubAgent(), initial_prompt=None)
     async with app.run_test(size=(100, 32)) as pilot:
         await pilot.pause()
-        inp = app.query_one("#input-area", Input)
+        inp = app.query_one("#input-area", TextArea)
         log = app.query_one("#chat-log", RichLog)
         inp.focus()
         await pilot.pause()
@@ -101,3 +107,17 @@ async def test_ctrl_k_compact_does_not_crash() -> None:
         await pilot.pause()
         await pilot.press("ctrl+k")
         await pilot.pause()
+
+
+@pytest.mark.asyncio
+async def test_ctrl_enter_sends_from_text_area() -> None:
+    stub = StubAgent()
+    app = PyOpenCodeApp(stub, initial_prompt=None)
+    async with app.run_test(size=(100, 32)) as pilot:
+        await pilot.pause()
+        ta = app.query_one("#input-area", TextArea)
+        ta.text = "hello tui"
+        await pilot.press("ctrl+enter")
+        await pilot.pause()
+        assert stub.seen_inputs == ["hello tui"]
+        assert ta.text == ""

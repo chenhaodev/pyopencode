@@ -1326,7 +1326,7 @@ requires-dist = [
     { name = "textual", marker = "extra == 'dev'", specifier = "==8.2.2" },
     { name = "textual", marker = "extra == 'tui'", specifier = ">=0.50" },
 ]
-provides-extras = ["dev", "tui", "lsp"]
+provides-extras = ["dev", "tui"]
 
 [[package]]
 name = "pytest"

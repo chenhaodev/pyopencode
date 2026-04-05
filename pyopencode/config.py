@@ -1,14 +1,18 @@
+import json
 import os
 import tomllib
 from pathlib import Path
 
-_PROVIDER_ENV_VARS = {
+# Provider id -> env var name LiteLLM / Anthropic SDK expect.
+PROVIDER_ENV_VARS = {
     "anthropic": "ANTHROPIC_API_KEY",
     "openai": "OPENAI_API_KEY",
     "gemini": "GEMINI_API_KEY",
     "qwen": "DASHSCOPE_API_KEY",
     "siliconflow": "SILICONFLOW_API_KEY",
 }
+
+_ALLOWED_CREDENTIAL_ENV = frozenset(PROVIDER_ENV_VARS.values())
 
 DEFAULT_CONFIG = {
     "model": "claude-sonnet-4-20250514",
@@ -75,13 +79,35 @@ def load_config() -> dict:
             project_config = tomllib.load(f)
             deep_merge(config, project_config)
 
+    _load_credentials_json()
     _apply_api_keys(config)
     return config
 
 
+def _load_credentials_json() -> None:
+    path = Path.home() / ".pyopencode" / "credentials.json"
+    if not path.exists():
+        return
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (json.JSONDecodeError, OSError):
+        return
+    if not isinstance(data, dict):
+        return
+    for key, val in data.items():
+        if key not in _ALLOWED_CREDENTIAL_ENV:
+            continue
+        if not isinstance(val, str):
+            continue
+        stripped = val.strip()
+        if stripped:
+            os.environ.setdefault(key, stripped)
+
+
 def _apply_api_keys(config: dict):
     for provider, pconf in config.get("providers", {}).items():
-        env_name = _PROVIDER_ENV_VARS.get(provider)
+        env_name = PROVIDER_ENV_VARS.get(provider)
         if not env_name:
             continue
         api_key_env = pconf.get("api_key_env", "")

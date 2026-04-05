@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `pyopencode auth login` to save API keys to `~/.pyopencode/credentials.json`
+  (loaded by `load_config`); README documents env vars and this flow.
+- TUI: chat-style Panels with timestamps, Markdown assistant bubbles, multiline
+  `TextArea`, Send + Ctrl+Enter, welcome strip, stream “typing…” line, dim
+  separators; help text updated.
+- CLI: Click command group (`run`, `auth`, `sessions`, `config`, `doctor`,
+  `version`); legacy `pyopencode "prompt"` still works via argv rewrite;
+  `sessions path`, `config paths`/`show`, `doctor`; README CLI table;
+  `python -m pyopencode` (`__main__.py`).
+- README: full rewrite for install extras, quick start, API keys, CLI/TUI
+  reference, correct session DB path, config/doctor pointers.
+- `LICENSE` (MIT) and `license` metadata in `pyproject.toml`.
 - `ROADMAP.md`: future work vs `TASK.md` and current implementation.
 - LSP connection pool (`lsp_session`) and tool `lsp_find_references`.
 - `uv.lock` with CI using `uv sync --frozen --extra dev`.
@@ -28,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mention API keys before first run.
 - Default Qwen `api_key_env` aligned to `DASHSCOPE_API_KEY` (matches
   `SECURITY.md` and LiteLLM env wiring).
+- Drop empty `[lsp]` optional dependency from `pyproject.toml`.
 - SECURITY: drop `config.info.py` guidance; align with TOML + env keys.
 
 ### Removed
