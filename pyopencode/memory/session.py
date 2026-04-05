@@ -61,13 +61,22 @@ class SessionStore:
         )
         self.conn.commit()
 
-    def load_latest(self, project_path: str) -> list[dict] | None:
+    def load_latest_session(
+        self, project_path: str
+    ) -> tuple[Optional[str], Optional[list[dict]]]:
         cursor = self.conn.execute(
-            "SELECT messages FROM sessions WHERE project_path = ? ORDER BY updated_at DESC LIMIT 1",
+            "SELECT id, messages FROM sessions WHERE project_path = ? "
+            "ORDER BY updated_at DESC LIMIT 1",
             (project_path,),
         )
         row = cursor.fetchone()
-        return json.loads(row[0]) if row else None
+        if not row:
+            return None, None
+        return row[0], json.loads(row[1])
+
+    def load_latest(self, project_path: str) -> list[dict] | None:
+        _sid, msgs = self.load_latest_session(project_path)
+        return msgs
 
     def list_sessions(
         self, project_path: Optional[str] = None, limit: int = 20

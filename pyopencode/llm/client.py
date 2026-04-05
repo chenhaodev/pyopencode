@@ -1,5 +1,6 @@
+import os
+
 import litellm
-from typing import AsyncIterator
 
 
 class LLMClient:
@@ -37,6 +38,10 @@ class LLMClient:
         api_key_env = provider_config.get("api_key_env", "")
         if api_key_env and not api_key_env.replace("_", "").isupper():
             kwargs["api_key"] = api_key_env
+        elif api_key_env:
+            env_val = os.environ.get(api_key_env)
+            if env_val:
+                kwargs["api_key"] = env_val
 
         if stream:
             return await self._stream_chat(**kwargs)

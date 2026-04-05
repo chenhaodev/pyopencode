@@ -85,3 +85,32 @@ class TestLLMClientCostEstimate:
 
         client._accumulate_tool_call(tool_calls, delta2)
         assert tool_calls[0]["function"]["arguments"] == '{"file_path": "foo.py"}'
+
+
+@pytest.mark.asyncio
+async def test_chat_passes_api_key_from_env(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-from-env")
+    config = {
+        "model": "gpt-4o-mini",
+        "provider": "openai",
+        "temperature": 0,
+        "max_tokens": 100,
+        "providers": {
+            "openai": {"api_key_env": "OPENAI_API_KEY"},
+        },
+    }
+    client = LLMClient(config)
+    mock_resp = MagicMock()
+    mock_resp.choices = [MagicMock()]
+    mock_resp.choices[0].message = MagicMock()
+    mock_resp.choices[0].message.content = "hi"
+    mock_resp.choices[0].message.tool_calls = None
+    mock_resp.usage = MagicMock(prompt_tokens=1, completion_tokens=1)
+    with patch(
+        "pyopencode.llm.client.litellm.acompletion",
+        new_callable=AsyncMock,
+    ) as ac:
+        ac.return_value = mock_resp
+        await client.chat([{"role": "user", "content": "x"}], stream=False)
+    ac.assert_awaited_once()
+    assert ac.await_args.kwargs.get("api_key") == "sk-test-from-env"

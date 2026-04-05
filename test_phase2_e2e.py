@@ -3,7 +3,8 @@
 Phase 2 E2E Integration Test
 Tests all Phase 2 components together:
 1. Conversation compaction
-2. Session persistence
+2. Session persistence (SessionStore save/load only — not the CLI / AgentLoop
+   wiring; that is covered by pytest tests/test_session_agent_loop.py)
 3. Git tools
 4. Model router
 5. Token counting

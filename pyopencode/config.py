@@ -40,6 +40,9 @@ DEFAULT_CONFIG = {
         "summary_model": "qwen-turbo",
         "keep_recent": 10,
     },
+    "session": {
+        "enabled": True,
+    },
     "strong_model": "claude-sonnet-4-20250514",
     "fast_model": "qwen-turbo",
     "long_context_model": "gemini-2.0-flash",

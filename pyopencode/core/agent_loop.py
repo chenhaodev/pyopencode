@@ -1,4 +1,6 @@
 import json
+import uuid
+from pathlib import Path
 
 import pyopencode.tools.bash
 import pyopencode.tools.dispatch_subagent
@@ -11,6 +13,7 @@ import pyopencode.tools.todo_write
 import pyopencode.tools.write_file  # noqa: F401 - imported for tool registration
 from pyopencode.llm.client import LLMClient
 from pyopencode.memory.agent_md import load_memory
+from pyopencode.memory.session import SessionStore
 from pyopencode.tools.dispatch_subagent import set_llm_instance
 from pyopencode.tools.permissions import PermissionManager
 from pyopencode.tools.registry import registry
@@ -60,6 +63,9 @@ class AgentLoop:
         self.permissions = PermissionManager(config)
         self.messages: list[dict] = []
         self.max_iterations = 50
+        self._project_path = ""
+        self._session_id = ""
+        self._session_store: SessionStore | None = None
 
     def _build_system_prompt(self) -> str:
         memory = load_memory()
@@ -68,44 +74,96 @@ class AgentLoop:
             memory_section = f"## Project Memory (from AGENT.md)\n{memory}"
         return SYSTEM_PROMPT.format(memory_section=memory_section)
 
+    def _refresh_system_prompt_in_messages(self) -> None:
+        content = self._build_system_prompt()
+        if self.messages and self.messages[0].get("role") == "system":
+            self.messages[0] = {"role": "system", "content": content}
+        else:
+            self.messages.insert(0, {"role": "system", "content": content})
+
+    def _save_session(self) -> None:
+        if not self._session_store:
+            return
+        self._session_store.save(
+            self._session_id,
+            self._project_path,
+            self.messages,
+        )
+
     async def run(self, initial_prompt: str = None, resume: bool = False):
         print("🤖 PyOpenCode ready. Type 'exit' to quit, 'clear' to reset.\n")
 
-        self.messages = [{"role": "system", "content": self._build_system_prompt()}]
+        self._project_path = str(Path.cwd().resolve())
+        session_cfg = self.config.get("session", {})
+        session_enabled = session_cfg.get("enabled", True)
+        self._session_store = SessionStore() if session_enabled else None
 
-        if initial_prompt:
-            await self._process_user_input(initial_prompt)
-
-        while True:
-            try:
-                user_input = input("\n> ").strip()
-            except (EOFError, KeyboardInterrupt):
-                print("\nBye!")
-                break
-
-            if not user_input:
-                continue
-            if user_input.lower() == "exit":
-                break
-            if user_input.lower() == "clear":
-                self.messages = [
-                    {"role": "system", "content": self._build_system_prompt()}
-                ]
-                print("Conversation cleared.")
-                continue
-            if user_input.lower() == "cost":
+        self._session_id = str(uuid.uuid4())
+        if session_enabled and self._session_store and resume:
+            sid, loaded = self._session_store.load_latest_session(
+                self._project_path
+            )
+            if sid is not None and loaded is not None:
+                self._session_id = sid
+                self.messages = list(loaded)
+                self._refresh_system_prompt_in_messages()
+            else:
                 print(
-                    f"Tokens: {self.llm.total_input_tokens} in / "
-                    f"{self.llm.total_output_tokens} out | "
-                    f"Est. cost: ${self.llm.total_cost_estimate:.4f}"
+                    "No saved session for this project. Starting fresh.\n"
                 )
-                continue
+                self.messages = [
+                    {
+                        "role": "system",
+                        "content": self._build_system_prompt(),
+                    }
+                ]
+        else:
+            self.messages = [
+                {"role": "system", "content": self._build_system_prompt()}
+            ]
 
-            await self._process_user_input(user_input)
+        try:
+            if initial_prompt:
+                await self._process_user_input(initial_prompt)
+
+            while True:
+                try:
+                    user_input = input("\n> ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    print("\nBye!")
+                    break
+
+                if not user_input:
+                    continue
+                if user_input.lower() == "exit":
+                    break
+                if user_input.lower() == "clear":
+                    self._session_id = str(uuid.uuid4())
+                    self.messages = [
+                        {
+                            "role": "system",
+                            "content": self._build_system_prompt(),
+                        }
+                    ]
+                    self._save_session()
+                    print("Conversation cleared.")
+                    continue
+                if user_input.lower() == "cost":
+                    print(
+                        f"Tokens: {self.llm.total_input_tokens} in / "
+                        f"{self.llm.total_output_tokens} out | "
+                        f"Est. cost: ${self.llm.total_cost_estimate:.4f}"
+                    )
+                    continue
+
+                await self._process_user_input(user_input)
+        finally:
+            self._save_session()
 
     async def _process_user_input(self, user_input: str):
         self.messages.append({"role": "user", "content": user_input})
         await self._agent_loop()
+        self._save_session()
 
     async def _agent_loop(self):
         for iteration in range(self.max_iterations):
