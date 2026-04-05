@@ -21,7 +21,7 @@ DEFAULT_CONFIG = {
         "openai": {"api_key_env": "OPENAI_API_KEY"},
         "gemini": {"api_key_env": "GEMINI_API_KEY"},
         "qwen": {
-            "api_key_env": "QWEN_API_KEY",
+            "api_key_env": "DASHSCOPE_API_KEY",
             "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         },
         "siliconflow": {

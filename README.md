@@ -4,13 +4,24 @@ Terminal AI coding agent for Python **3.11+**. Uses [LiteLLM](https://github.com
 
 ## Install
 
+**From this repository** (works today):
+
 ```bash
-pip install pyopencode
-pip install "pyopencode[tui]"   # optional Textual UI
-pip install -e .                # editable, from a clone (uv pip also works)
+git clone https://github.com/chenhaodev/pyopencode.git
+cd pyopencode
+pip install -e .
 ```
 
+Optional Textual UI: `pip install -e ".[tui]"` (or `uv pip install -e ".[tui]"`).
+
+**From PyPI:** `pip install pyopencode` / `pip install "pyopencode[tui]"` once the
+package is published ([RELEASING.md](RELEASING.md)). If `pip` reports no matching
+distribution, use the clone steps above.
+
 ## Usage
+
+Set at least one provider API key first ([SECURITY.md](SECURITY.md)). Defaults
+use Anthropic unless you pass `--model` / `--provider`.
 
 ```bash
 pyopencode "your task"
@@ -25,11 +36,9 @@ Sessions live under `~/.pyopencode/sessions` (scoped by project path).
 
 ## Configuration
 
-Set provider keys in the environment — see [SECURITY.md](SECURITY.md).
-
 Optional TOML (later overrides earlier): `~/.pyopencode/config.toml`, then
 `.pyopencode.toml` in the working directory. Defaults and schema:
-`pyopencode/config.py`.
+`pyopencode/config.py`. Keys: [SECURITY.md](SECURITY.md).
 
 ## Documentation
 

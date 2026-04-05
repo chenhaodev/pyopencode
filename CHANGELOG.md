@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README: minimal layout; LSP/pyright notes moved to CONTRIBUTING.
 - ROADMAP, SECURITY, TASK: shortened; TASK no longer embeds large code/prompt
   drafts (see source tree).
+- README: install from clone first; note PyPI may be unavailable until publish;
+  mention API keys before first run.
+- Default Qwen `api_key_env` aligned to `DASHSCOPE_API_KEY` (matches
+  `SECURITY.md` and LiteLLM env wiring).
 - SECURITY: drop `config.info.py` guidance; align with TOML + env keys.
 
 ### Removed
