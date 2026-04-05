@@ -20,7 +20,7 @@ Repository = "https://github.com/chenhaodev/pyopencode"
 [project.optional-dependencies]
 dev = [
     "pre-commit==4.5.1",
-    "pytest==8.3.4",
+    "pytest==9.0.2",
     "pytest-asyncio==0.24.0",
     "ruff==0.9.5",
     "textual==8.2.2",
