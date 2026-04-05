@@ -48,7 +48,10 @@ If you must use `config.info.py`, ensure:
 2. File permissions are restrictive: `chmod 600 config.info.py`
 3. Never share this file or commit it
 
-Copy `config.info.example.py` to `config.info.py` and fill in your keys.
+Create `config.info.py` in the project root (or `~/.pyopencode/config.info.py`)
+with a top-level `DEFAULT_CONFIG` dict. Match the shape of built-in defaults in
+`pyopencode/config.py` and README “Config merge order”; use `api_key_env` fields
+that name environment variables instead of embedding secret literals.
 
 **Global keys file:** You may also use `~/.pyopencode/config.info.py` (merged before the project’s `config.info.py`). Keep it out of any synced or public folder.
 

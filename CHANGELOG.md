@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `lsp_goto_definition` reuses the pooled language server per workspace.
 
+### Removed
+
+- Root `test_phase2_e2e.py` (manual Phase 2 script; coverage lives in `tests/`).
+- `config.info.example.py`; use TOML + env vars (SECURITY.md) or a local
+  `config.info.py` as documented in README.
+
 ## [0.1.0]
 
 Initial published layout: agent loop, tools, sessions, optional TUI and LSP tools.
