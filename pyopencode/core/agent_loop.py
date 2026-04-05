@@ -11,22 +11,62 @@ import pyopencode.tools.git_tools
 import pyopencode.tools.glob_search
 import pyopencode.tools.grep_search
 import pyopencode.tools.lsp_tool  # noqa: F401 - tool registration
+import pyopencode.tools.mcp_tool  # noqa: F401 - tool registration
 import pyopencode.tools.read_file
 import pyopencode.tools.repomap_tool  # noqa: F401 - tool registration
 import pyopencode.tools.todo_write
 import pyopencode.tools.write_file  # noqa: F401 - imported for tool registration
-from pyopencode.llm.client import LLMClient
+from pyopencode.core.router import ModelRouter
+from pyopencode.llm.client import LLMClient, infer_provider_id_for_model
+from pyopencode.llm.token_counter import count_messages_tokens
 from pyopencode.memory.agent_md import load_memory
 from pyopencode.memory.session import SessionStore
 from pyopencode.tools.dispatch_subagent import set_llm_instance
+from pyopencode.tools.mcp_tool import configure_mcp_servers
 from pyopencode.tools.permissions import PermissionManager
 from pyopencode.tools.registry import registry
+from pyopencode.tools.tool_runtime import configure_from_config
+from pyopencode.utils.diff import generate_diff
 
 PermissionHandler = Callable[[str, dict], Awaitable[str]]
+
+
+def _read_file_text_if_exists(file_path: str) -> str | None:
+    p = Path(file_path).expanduser()
+    if not p.is_file():
+        return None
+    try:
+        return p.read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+
+def _build_edit_diff(name: str, args: dict, before: str | None) -> str | None:
+    fp = args.get("file_path")
+    if not fp or name not in ("edit_file", "write_file"):
+        return None
+    p = Path(str(fp)).expanduser()
+    after = ""
+    if p.is_file():
+        try:
+            after = p.read_text(encoding="utf-8")
+        except OSError:
+            return None
+    b = before if before is not None else ""
+    diff = generate_diff(b, after, p.name)
+    if not diff.strip():
+        return None
+    if len(diff) > 12000:
+        return diff[:12000] + "\n…\n"
+    return diff
 
 SYSTEM_PROMPT = """You are PyOpenCode, an expert AI software engineer \
 operating in the user's terminal. You have direct access to the filesystem \
 and can execute commands.
+
+Product stance: like **OpenCode** (small, hackable agent core) plus **Claude Code**-style \
+discipline — read before edit, todo_write for multi-step work, tiered tool permissions, \
+and reliable string-replacement edits.
 
 ## Identity
 - You are autonomous: you explore, plan, implement, and verify without asking for permission at every step.
@@ -51,7 +91,9 @@ For complex tasks, follow this pattern:
 
 ## Parallel Work
 When you need to gather information from multiple files, use dispatch_subagents to read them in parallel.
-Use get_repomap for a quick AST skeleton of the Python tree when exploring structure.
+Use get_repomap for a quick skeleton of the Python tree (AST; optional tree-sitter). \
+After editing files, call lsp_sync_document so the language server sees updates; use \
+lsp_get_diagnostics to read issues. MCP tools (mcp_*) are available when configured in TOML.
 
 ## Communication Style
 - Start with a brief plan (1-3 sentences)
@@ -65,6 +107,9 @@ Use get_repomap for a quick AST skeleton of the Python tree when exploring struc
 class AgentLoop:
     def __init__(self, config: dict):
         self.config = config
+        configure_from_config(config)
+        configure_mcp_servers(config)
+        self.router = ModelRouter(config)
         self.llm = LLMClient(config)
         set_llm_instance(self.llm)
         self.permissions = PermissionManager(config)
@@ -77,7 +122,12 @@ class AgentLoop:
         self._stream_sink: Optional[Callable[[str], None]] = None
         self._notify: Optional[Callable[[str], None]] = None
         self._tool_echo: Optional[Callable[[str, dict], None]] = None
-        self._tool_result_echo: Optional[Callable[[str, str], None]] = None
+        self._tool_result_echo: Optional[
+            Callable[[str, str, str | None], None]
+        ] = None
+        self._tool_wave_echo: Optional[
+            Callable[[list[dict]], None]
+        ] = None
         self._llm_idle_hook: Optional[Callable[[], None]] = None
         self._llm_busy_hook: Optional[Callable[[], None]] = None
         self._permission_handler: Optional[PermissionHandler] = None
@@ -225,11 +275,19 @@ class AgentLoop:
             if self._llm_idle_hook:
                 self._llm_idle_hook()
             try:
+                token_estimate = count_messages_tokens(self.messages)
+                main_model = self.router.select(token_count=token_estimate)
+                main_provider = infer_provider_id_for_model(
+                    main_model,
+                    self.config,
+                )
                 response = await self.llm.chat(
                     messages=self.messages,
                     tools=registry.get_schemas(),
                     stream=self._chat_stream,
                     stream_sink=self._stream_sink if self._chat_stream else None,
+                    model=main_model,
+                    provider_id=main_provider,
                 )
             except Exception as exc:
                 self._emit(f"\n❌ LLM error: {type(exc).__name__}: {exc}\n")
@@ -268,6 +326,7 @@ class AgentLoop:
 
     async def _execute_tool_calls(self, tool_calls: list[dict]) -> list[dict]:
         results = []
+        wave: list[dict] = []
 
         for tc in tool_calls:
             name = tc["function"]["name"]
@@ -275,6 +334,11 @@ class AgentLoop:
                 args = json.loads(tc["function"]["arguments"])
             except json.JSONDecodeError:
                 args = {}
+
+            snapshot = None
+            fp_arg = args.get("file_path")
+            if name in ("edit_file", "write_file") and fp_arg:
+                snapshot = _read_file_text_if_exists(str(fp_arg))
 
             if not self.permissions.check(name, args):
                 if self._permission_handler:
@@ -310,18 +374,30 @@ class AgentLoop:
                     continue
 
             preview = json.dumps(args, ensure_ascii=False)[:100]
-            if self._tool_echo:
-                self._tool_echo(name, args)
-            elif self._notify:
-                self._notify(f"  🔧 {name}({preview})")
-            else:
-                print(f"  🔧 {name}({preview})")
+            if self._tool_wave_echo is None:
+                if self._tool_echo:
+                    self._tool_echo(name, args)
+                elif self._notify:
+                    self._notify(f"  🔧 {name}({preview})")
+                else:
+                    print(f"  🔧 {name}({preview})")
             result = await registry.execute(name, args)
+            diff = _build_edit_diff(name, args, snapshot)
 
-            if self._tool_result_echo:
-                cap = 480
-                prev = result if len(result) <= cap else result[:cap] + "…"
-                self._tool_result_echo(name, prev)
+            cap = 480
+            prev = result if len(result) <= cap else result[:cap] + "…"
+            wave.append(
+                {
+                    "name": name,
+                    "args": args,
+                    "result": result,
+                    "preview": prev,
+                    "diff": diff,
+                }
+            )
+
+            if self._tool_wave_echo is None and self._tool_result_echo:
+                self._tool_result_echo(name, prev, diff)
 
             if len(result) > 20000:
                 result = result[:10000] + "\n...(truncated)...\n" + result[-10000:]
@@ -334,11 +410,13 @@ class AgentLoop:
                 }
             )
 
+        if self._tool_wave_echo and wave:
+            self._tool_wave_echo(wave)
+
         return results
 
     async def _maybe_compact(self):
         from pyopencode.core.compaction import compact_conversation
-        from pyopencode.llm.token_counter import count_messages_tokens
 
         total_tokens = count_messages_tokens(self.messages)
         max_tokens = self.config.get("max_context_tokens", 200000)
@@ -346,11 +424,21 @@ class AgentLoop:
 
         if total_tokens > max_tokens * threshold:
             self._emit("\n📦 Compacting conversation history...")
+            raw_summary = self.config["compaction"].get("summary_model", "auto")
+            if raw_summary == "auto":
+                summary_model = self.router.select("compaction")
+            else:
+                summary_model = raw_summary
+            summary_provider = infer_provider_id_for_model(
+                summary_model,
+                self.config,
+            )
             self.messages = await compact_conversation(
                 self.messages,
                 self.llm,
-                summary_model=self.config["compaction"]["summary_model"],
+                summary_model=summary_model,
                 keep_recent=self.config["compaction"]["keep_recent"],
+                summary_provider_id=summary_provider,
             )
             new_tokens = count_messages_tokens(self.messages)
             self._emit(

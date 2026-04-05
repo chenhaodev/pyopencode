@@ -27,7 +27,10 @@ _HELP_BODY = """
   [cyan]Ctrl+C[/]         退出应用
 
 [bold]界面[/]
-  • 上方为对话历史（自动滚动）；工具调用与结果为分块 Panel（错误为红框）
+  • 上方为对话历史（自动滚动）；同一轮多个工具默认合并为一块 [dim]Tools (n)[/] \
+面板；[cyan]--no-group-tools[/] 可改回每工具单独 Panel
+  • 对 [cyan]edit_file[/] / [cyan]write_file[/] 会在结果下附 [dim]unified diff[/] 预览
+  • 启动时可选用 [cyan]--tui-theme light|dark[/]、[cyan]--tui-high-contrast[/]
   • 日志聚焦时可用 [cyan]PgUp / PgDn[/]、方向键滚动
   • 底部状态栏显示模型与 token / 估算费用
   • 过长内容会在日志中截断并标注省略字符数

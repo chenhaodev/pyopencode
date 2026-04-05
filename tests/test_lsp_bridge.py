@@ -75,6 +75,40 @@ async def test_request_skips_notification_before_matching_id():
 
 
 @pytest.mark.asyncio
+async def test_publish_diagnostics_stored_before_matching_response(tmp_path):
+
+    marker = tmp_path / "diag.py"
+    marker.write_text("x=1\n", encoding="utf-8")
+    uri = marker.resolve().as_uri()
+    notif = {
+        "jsonrpc": "2.0",
+        "method": "textDocument/publishDiagnostics",
+        "params": {
+            "uri": uri,
+            "diagnostics": [{"message": "test-diag", "severity": 1}],
+        },
+    }
+    resp = {"jsonrpc": "2.0", "id": 1, "result": {"ok": True}}
+    stdout = io.BytesIO(_framed_response(notif) + _framed_response(resp))
+
+    proc = MagicMock()
+    proc.stdin = io.BytesIO()
+    proc.stdout = stdout
+    proc.stderr = io.BytesIO()
+    proc.poll = MagicMock(return_value=None)
+
+    bridge = LSPBridge("python", str(tmp_path))
+    bridge._request_id = 0
+    bridge.process = proc
+
+    out = await bridge._request("fakeMethod", {})
+    assert out.get("id") == 1
+    diags = bridge.diagnostics_for_file(str(marker))
+    assert len(diags) == 1
+    assert diags[0].get("message") == "test-diag"
+
+
+@pytest.mark.asyncio
 async def test_read_response_invalid_json_returns_empty_dict():
     bad = b"Content-Length: 2\r\n\r\nxx"
     stdout = io.BytesIO(bad)

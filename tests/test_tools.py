@@ -116,6 +116,49 @@ class TestToolRegistry:
         result = await self.registry.execute("add_tool", '{"a": 2, "b": 3}')
         assert result == "5"
 
+    @pytest.mark.asyncio
+    async def test_execute_sync_tool_timeout(self):
+        from pyopencode.tools import tool_runtime
+
+        tool_runtime.configure_from_config(
+            {
+                "tools": {
+                    "sync_timeout_sec": 0.2,
+                    "async_timeout_sec": 2.0,
+                    "bash_max_timeout_sec": 300,
+                    "max_retries": 0,
+                    "retry_delay_sec": 0.05,
+                },
+            }
+        )
+        try:
+
+            @self.registry.register(
+                name="slow_sync",
+                description="Slow",
+                parameters={"type": "object", "properties": {}, "required": []},
+            )
+            def slow_sync():
+                import time
+
+                time.sleep(2)
+                return "done"
+
+            result = await self.registry.execute("slow_sync", {})
+            assert "timed out" in result.lower()
+        finally:
+            tool_runtime.configure_from_config(
+                {
+                    "tools": {
+                        "sync_timeout_sec": 120.0,
+                        "async_timeout_sec": 180.0,
+                        "bash_max_timeout_sec": 300,
+                        "max_retries": 0,
+                        "retry_delay_sec": 0.25,
+                    },
+                },
+            )
+
 
 class TestReadWriteEditTools:
     def setup_method(self):

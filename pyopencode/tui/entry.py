@@ -11,6 +11,10 @@ def run_tui(
     initial_prompt: str | None,
     resume_latest: bool,
     resume_session_id: str | None,
+    *,
+    theme: str = "dark",
+    high_contrast: bool = False,
+    group_tools: bool = True,
 ) -> None:
     async def _run() -> None:
         agent = AgentLoop(config)
@@ -21,6 +25,9 @@ def run_tui(
         app = PyOpenCodeApp(
             agent_loop=agent,
             initial_prompt=initial_prompt,
+            theme=theme,
+            high_contrast=high_contrast,
+            group_tools=group_tools,
         )
         await app.run_async()
 

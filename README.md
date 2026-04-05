@@ -1,9 +1,11 @@
 # PyOpenCode
 
-Terminal **AI coding agent** for Python **3.11+**. It runs a ReAct-style loop with
-tools (read/edit files, bash, search, Git, optional LSP), multiple LLM backends
-via [LiteLLM](https://github.com/BerriAI/litellm) (Claude, OpenAI, Gemini,
-Qwen / DashScope, SiliconFlow), and an optional **Textual TUI**.
+Terminal **AI coding agent** for Python **3.11+**. It targets the same problem
+space as **OpenCode** and **Claude Code**: a small, hackable ReAct core with
+disciplined tool use (read before edit, `todo_write`, tiered permissions,
+string-replacement `edit_file`). Backends are unified through
+[LiteLLM](https://github.com/BerriAI/litellm) (Claude, OpenAI, Gemini,
+Qwen / DashScope, SiliconFlow), with an optional **Textual TUI** and LSP tools.
 
 ---
 
@@ -54,7 +56,9 @@ target interpreter. After install, **`pyopencode doctor`** checks **litellm**
 | Extra | Install | Purpose |
 |-------|---------|---------|
 | *(none)* | `pip install -e .` | CLI + agent core |
-| **`[tui]`** | `pip install -e ".[tui]"` | Textual chat UI (`--tui`) |
+| **`[tui]`** | `pip install -e ".[tui]"` | Textual chat UI (`--tui`, themes, grouped tool panels) |
+| **`[repomap]`** | `pip install -e ".[repomap]"` | `get_repomap` with `prefer_tree_sitter=true` (tree-sitter) |
+| **`[lsp]`** | `pip install -e ".[lsp]"` | Optional `pygls` for building/extending language servers |
 | **`[dev]`** | `pip install -e ".[dev]"` | pytest, ruff, pre-commit, Textual (Pilot tests) |
 
 If `python -m pyopencode` fails with **No module named 'click'**, your venv is
@@ -72,7 +76,8 @@ distribution*, use the clone flow above.
 1. **API keys** — set env vars or run `pyopencode auth login` (see [API keys](#api-keys)).
 2. **Sanity check:** `pyopencode doctor` (Python version, which keys are set,
    whether Textual is installed).
-3. **Run:** `pyopencode "summarize this repo"` or `pyopencode --tui` for the UI.
+3. **Run:** `pyopencode "summarize this repo"` or `pyopencode --tui` for the UI
+   (`--tui-theme light|dark`, `--tui-high-contrast`, `--no-group-tools` optional).
 
 Entry points:
 
@@ -147,6 +152,8 @@ pyopencode run --resume                 # continue latest session for cwd
 pyopencode run --session-id <uuid>      # continue a specific session
 pyopencode run --tui                    # Textual UI (needs [tui])
 pyopencode run --tui --resume
+pyopencode run --tui --tui-theme light --tui-high-contrast
+pyopencode run --tui --no-group-tools   # one Panel per tool instead of batch
 ```
 
 **Shorthand:** if the first argument is **not** a known subcommand (`run`,
@@ -160,6 +167,30 @@ pyopencode --model gpt-4o --provider openai "hello"
 ```
 
 Use **`pyopencode run --help`** for the full option list.
+
+### Config snippets (`~/.pyopencode/config.toml` or `.pyopencode.toml`)
+
+**Tool timeouts / bash cap / retries**
+
+```toml
+[tools]
+sync_timeout_sec = 120.0
+async_timeout_sec = 180.0
+bash_max_timeout_sec = 300
+max_retries = 1
+retry_delay_sec = 0.3
+```
+
+**MCP stdio servers** (then use agent tools `mcp_list_tools` / `mcp_call_tool`)
+
+```toml
+[mcp.servers.files]
+command = ["npx", "-y", "@modelcontextprotocol/server-filesystem", "{root}"]
+# optional: cwd = "/tmp", env = { KEY = "value" }
+```
+
+`{root}` expands to the absolute path of the current working directory when the
+server is started.
 
 ### Sessions (persistence)
 

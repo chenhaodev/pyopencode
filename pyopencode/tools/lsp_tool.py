@@ -27,6 +27,22 @@ async def _pooled_bridge(language: str, root: str):
     return await get_lsp_bridge(language, root, server_cmd=cmd)
 
 
+def _read_source_sync(abs_fp: str) -> str:
+    return Path(abs_fp).read_text(encoding="utf-8")
+
+
+async def _open_or_sync(bridge, language: str, abs_fp: str, *, sync: bool) -> str | None:
+    try:
+        text = _read_source_sync(abs_fp)
+    except OSError as exc:
+        return f"Error: cannot read file: {exc}"
+    if sync:
+        await bridge.did_change(abs_fp, text, language_id=language)
+    else:
+        await bridge.did_open(abs_fp, text, language_id=language)
+    return None
+
+
 @registry.register(
     name="lsp_goto_definition",
     description=(
@@ -149,3 +165,148 @@ async def lsp_find_references(
     await bridge.did_open(abs_fp, src)
     refs = await bridge.find_references(abs_fp, line, character)
     return json.dumps(refs, ensure_ascii=False, indent=2)
+
+
+@registry.register(
+    name="lsp_sync_document",
+    description=(
+        "After you edit a file on disk, notify the pooled language server via "
+        "textDocument/didChange (full text) so diagnostics and other LSP "
+        "features see the latest content."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "language": {
+                "type": "string",
+                "description": "python | typescript | go | rust",
+            },
+            "file_path": {"type": "string"},
+        },
+        "required": ["language", "file_path"],
+    },
+    category="always_allow",
+)
+async def lsp_sync_document(language: str, file_path: str) -> str:
+    root = str(Path.cwd().resolve())
+    try:
+        bridge = await _pooled_bridge(language, root)
+    except (ValueError, RuntimeError) as exc:
+        return f"Error: {exc}"
+    except (FileNotFoundError, OSError) as exc:
+        return f"Error: could not start LSP server: {exc}"
+    abs_fp = str(Path(file_path).expanduser().resolve())
+    err = await _open_or_sync(bridge, language, abs_fp, sync=True)
+    if err:
+        return err
+    return f"LSP synced (didChange) for {abs_fp}"
+
+
+@registry.register(
+    name="lsp_get_diagnostics",
+    description=(
+        "Return language-server diagnostics for a file (errors/warnings). "
+        "Opens the file if needed; waits briefly for publishDiagnostics."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "language": {"type": "string"},
+            "file_path": {"type": "string"},
+        },
+        "required": ["language", "file_path"],
+    },
+    category="always_allow",
+)
+async def lsp_get_diagnostics(language: str, file_path: str) -> str:
+    root = str(Path.cwd().resolve())
+    try:
+        bridge = await _pooled_bridge(language, root)
+    except (ValueError, RuntimeError) as exc:
+        return f"Error: {exc}"
+    except (FileNotFoundError, OSError) as exc:
+        return f"Error: could not start LSP server: {exc}"
+    abs_fp = str(Path(file_path).expanduser().resolve())
+    try:
+        src = _read_source_sync(abs_fp)
+    except OSError as exc:
+        return f"Error: cannot read file: {exc}"
+    await bridge.did_open(abs_fp, src, language_id=language)
+    await bridge.settle_diagnostics()
+    diags = bridge.diagnostics_for_file(abs_fp)
+    return json.dumps(diags, ensure_ascii=False, indent=2)
+
+
+@registry.register(
+    name="lsp_hover",
+    description="Request hover / quick-info at a position from the language server.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "language": {"type": "string"},
+            "file_path": {"type": "string"},
+            "line": {"type": "integer", "description": "0-based line"},
+            "character": {
+                "type": "integer",
+                "description": "0-based UTF-16 code unit on the line",
+            },
+        },
+        "required": ["language", "file_path", "line", "character"],
+    },
+    category="always_allow",
+)
+async def lsp_hover(
+    language: str,
+    file_path: str,
+    line: int,
+    character: int,
+) -> str:
+    root = str(Path.cwd().resolve())
+    try:
+        bridge = await _pooled_bridge(language, root)
+    except (ValueError, RuntimeError) as exc:
+        return f"Error: {exc}"
+    except (FileNotFoundError, OSError) as exc:
+        return f"Error: could not start LSP server: {exc}"
+    abs_fp = str(Path(file_path).expanduser().resolve())
+    try:
+        src = _read_source_sync(abs_fp)
+    except OSError as exc:
+        return f"Error: cannot read file: {exc}"
+    await bridge.did_open(abs_fp, src, language_id=language)
+    doc = await bridge.hover(abs_fp, line, character)
+    return json.dumps(doc, ensure_ascii=False, indent=2)
+
+
+@registry.register(
+    name="lsp_document_symbols",
+    description=(
+        "List symbols in a document (outline) from the language server "
+        "(textDocument/documentSymbol)."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "language": {"type": "string"},
+            "file_path": {"type": "string"},
+        },
+        "required": ["language", "file_path"],
+    },
+    category="always_allow",
+)
+async def lsp_document_symbols(language: str, file_path: str) -> str:
+    root = str(Path.cwd().resolve())
+    try:
+        bridge = await _pooled_bridge(language, root)
+    except (ValueError, RuntimeError) as exc:
+        return f"Error: {exc}"
+    except (FileNotFoundError, OSError) as exc:
+        return f"Error: could not start LSP server: {exc}"
+    abs_fp = str(Path(file_path).expanduser().resolve())
+    try:
+        src = _read_source_sync(abs_fp)
+    except OSError as exc:
+        return f"Error: cannot read file: {exc}"
+    await bridge.did_open(abs_fp, src, language_id=language)
+    doc = await bridge.document_symbols(abs_fp)
+    return json.dumps(doc, ensure_ascii=False, indent=2)

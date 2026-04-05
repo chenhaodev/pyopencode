@@ -1,7 +1,9 @@
 # PyOpenCode Project Memory
 
 ## Project Overview
-PyOpenCode is a Python-based lightweight AI coding agent built in 4 phases.
+PyOpenCode is a Python terminal AI coding agent: **OpenCode**-like minimal core
+plus **Claude Code**-style workflow (todos, permissions, edit_file). Built in four
+phases (MVP → memory → scale-out → TUI/LSP).
 
 ## Architecture
 - `pyopencode/core/` — AgentLoop (ReAct), SubAgent, Compaction, ModelRouter
@@ -17,7 +19,8 @@ PyOpenCode is a Python-based lightweight AI coding agent built in 4 phases.
 - Head+tail truncation for bash output
 - TodoWrite for agent task tracking
 - Tiered permissions: always_allow / allow_once_then_remember / always_ask
-- Cheap model (qwen-turbo) for conversation compaction
+- ModelRouter: main chat vs long-context vs subagent vs cheap compaction;
+  compaction `summary_model: "auto"` uses the cheap tier
 - SQLite at `~/.pyopencode/sessions.db` for session persistence
 
 ## Running

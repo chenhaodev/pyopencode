@@ -4,6 +4,28 @@ from collections.abc import Callable
 import litellm
 
 
+def infer_provider_id_for_model(model: str, config: dict) -> str:
+    """Map a LiteLLM model string to a ``providers`` config key."""
+    providers = config.get("providers", {})
+    default = config.get("provider", "anthropic")
+    if not model:
+        return default
+    m = model.lower()
+    candidates = [
+        ("anthropic", ("claude", "anthropic/")),
+        ("openai", ("gpt-", "openai/", "o1", "o3", "chatgpt")),
+        ("gemini", ("gemini", "google/", "vertex_ai/")),
+        ("qwen", ("qwen", "dashscope")),
+        ("siliconflow", ("minimax", "deepseek", "siliconflow")),
+    ]
+    for pid, needles in candidates:
+        if pid not in providers:
+            continue
+        if any(n in m for n in needles):
+            return pid
+    return default
+
+
 class LLMClient:
     def __init__(self, config: dict):
         self.config = config
@@ -17,10 +39,14 @@ class LLMClient:
         model: str | None = None,
         stream: bool = True,
         stream_sink: Callable[[str], None] | None = None,
+        provider_id: str | None = None,
     ) -> dict:
         model = model or self.config["model"]
-        provider = self.config.get("provider", "anthropic")
+        provider = provider_id or infer_provider_id_for_model(model, self.config)
         provider_config = self.config.get("providers", {}).get(provider, {})
+        if not provider_config:
+            provider = self.config.get("provider", "anthropic")
+            provider_config = self.config.get("providers", {}).get(provider, {})
 
         kwargs = {
             "model": model,

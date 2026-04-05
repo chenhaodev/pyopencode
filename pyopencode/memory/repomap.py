@@ -14,7 +14,12 @@ _IGNORE_DIRS = {
 }
 
 
-def generate_repomap(root: str = ".", extensions: Optional[list[str]] = None) -> str:
+def generate_repomap(
+    root: str = ".",
+    extensions: Optional[list[str]] = None,
+    *,
+    prefer_tree_sitter: bool = False,
+) -> str:
     if extensions is None:
         extensions = [".py"]
 
@@ -29,11 +34,79 @@ def generate_repomap(root: str = ".", extensions: Optional[list[str]] = None) ->
             rel_path = file_path.relative_to(root_path)
 
             if ext == ".py":
-                skeleton = _python_skeleton(file_path)
+                skeleton = ""
+                if prefer_tree_sitter:
+                    ts = _python_skeleton_tree_sitter(file_path)
+                    if ts:
+                        skeleton = ts
+                if not skeleton:
+                    skeleton = _python_skeleton(file_path)
                 if skeleton:
                     output_parts.append(f"## {rel_path}\n{skeleton}")
 
     return "\n\n".join(output_parts)
+
+
+def _python_skeleton_tree_sitter(file_path: Path) -> str:
+    try:
+        from tree_sitter_languages import get_parser
+    except ImportError:
+        return ""
+
+    try:
+        source = file_path.read_bytes()
+    except OSError:
+        return ""
+
+    parser = get_parser("python")
+    tree = parser.parse(source)
+    lines: list[str] = []
+
+    root = tree.root_node
+    for child in root.children:
+        t = child.type
+        if t == "function_definition":
+            name_node = child.child_by_field_name("name")
+            if name_node:
+                nm = source[name_node.start_byte : name_node.end_byte].decode(
+                    "utf-8",
+                    errors="replace",
+                )
+                lines.append(f"  def {nm}(...)")
+        elif t == "class_definition":
+            name_node = child.child_by_field_name("name")
+            if name_node:
+                nm = source[name_node.start_byte : name_node.end_byte].decode(
+                    "utf-8",
+                    errors="replace",
+                )
+                lines.append(f"  class {nm}:")
+            body = child.child_by_field_name("body")
+            if body is None:
+                for ch in child.children:
+                    if ch.type == "block":
+                        body = ch
+                        break
+            if body:
+                for item in body.children:
+                    if item.type in (
+                        "function_definition",
+                        "async_function_definition",
+                    ):
+                        nn = item.child_by_field_name("name")
+                        if nn:
+                            fn = source[nn.start_byte : nn.end_byte].decode(
+                                "utf-8",
+                                errors="replace",
+                            )
+                            prefix = (
+                                "async def"
+                                if item.type == "async_function_definition"
+                                else "def"
+                            )
+                            lines.append(f"    {prefix} {fn}(...)")
+
+    return "\n".join(lines)
 
 
 def _python_skeleton(file_path: Path) -> str:

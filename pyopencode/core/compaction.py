@@ -15,6 +15,8 @@ async def compact_conversation(
     llm: LLMClient,
     summary_model: str = "qwen-turbo",
     keep_recent: int = 10,
+    *,
+    summary_provider_id: str | None = None,
 ) -> list[dict]:
     if len(messages) <= keep_recent + 2:
         return messages
@@ -35,6 +37,7 @@ async def compact_conversation(
         ],
         model=summary_model,
         stream=False,
+        provider_id=summary_provider_id,
     )
 
     summary_msg = {

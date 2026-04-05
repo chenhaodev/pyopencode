@@ -8,9 +8,11 @@ from datetime import datetime
 from pyopencode.tui.install_hint import TUI_EXTRA_PIP
 
 try:
+    from rich.console import Group as RichGroup
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.rule import Rule
+    from rich.syntax import Syntax
     from rich.text import Text
     from textual.app import App, ComposeResult
     from textual.binding import Binding
@@ -62,13 +64,19 @@ def _write_user_message(log: RichLog, text: str) -> None:
     )
 
 
-def _write_assistant_rich(log: RichLog, body_text: str) -> None:
+def _write_assistant_rich(
+    log: RichLog,
+    body_text: str,
+    *,
+    theme_mode: str = "dark",
+) -> None:
     """Assistant bubble: Markdown when sane, else plain text."""
     ts = _now_hm()
     clipped = _truncate_log_text(body_text.strip(), _ASSISTANT_LOG_CHARS)
     title = f"[bold green]Assistant[/] · {ts}"
+    code_theme = "default" if theme_mode == "light" else "monokai"
     try:
-        md = Markdown(clipped, code_theme="monokai", inline_code_lexer="python")
+        md = Markdown(clipped, code_theme=code_theme, inline_code_lexer="python")
         log.write(
             Panel(
                 md,
@@ -113,6 +121,12 @@ class PyOpenCodeApp(App):
         padding: 0 1;
         color: $text;
         background: $surface;
+    }
+    .high-contrast #chat-log {
+        border: tall $accent;
+    }
+    .high-contrast #composer-root {
+        border: tall $accent;
     }
     #status-bar {
         height: 1;
@@ -164,7 +178,15 @@ class PyOpenCodeApp(App):
 
     TITLE = "PyOpenCode"
 
-    def __init__(self, agent_loop, initial_prompt: str | None = None):
+    def __init__(
+        self,
+        agent_loop,
+        initial_prompt: str | None = None,
+        *,
+        theme: str = "dark",
+        high_contrast: bool = False,
+        group_tools: bool = True,
+    ):
         super().__init__()
         self.agent_loop = agent_loop
         self.initial_prompt = initial_prompt
@@ -172,6 +194,9 @@ class PyOpenCodeApp(App):
         self._stream_received = False
         self._pending_tool_name: str | None = None
         self._pending_tool_args_line: str | None = None
+        self._theme_mode = theme
+        self._high_contrast = high_contrast
+        self._group_tools = group_tools
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -315,8 +340,70 @@ class PyOpenCodeApp(App):
         log = self.query_one("#chat-log", RichLog)
         self.query_one("#input-area", TextArea).focus()
 
+        if self._high_contrast:
+            self.add_class("high-contrast")
+        try:
+            self.theme = (
+                "textual-light" if self._theme_mode == "light" else "dracula"
+            )
+        except Exception:
+            pass
+
         if not self.initial_prompt:
             self._write_welcome(log)
+
+        def tool_wave_echo(wave: list[dict]) -> None:
+            chunks: list = [
+                Text(f"{len(wave)} tool(s) in this step\n", style="bold"),
+            ]
+            div_cap = max(400, _TOOL_RESULT_LOG_CHARS // max(len(wave), 1))
+            stheme = (
+                "default" if self._theme_mode == "light" else "monokai"
+            )
+            for item in wave:
+                name = item["name"]
+                args_line = json.dumps(item["args"], ensure_ascii=False)
+                preview = item["preview"]
+                diff = item.get("diff")
+                chunks.append(Text(f"▸ {name}\n", style="bold cyan"))
+                chunks.append(
+                    Text(
+                        _truncate_log_text(
+                            args_line,
+                            _TOOL_ARGS_PREVIEW_CHARS,
+                        )
+                        + "\n",
+                        style="dim",
+                    )
+                )
+                chunks.append(Text("→ ", style="cyan"))
+                chunks.append(
+                    Text(_truncate_log_text(preview, div_cap) + "\n")
+                )
+                if diff:
+                    chunks.append(
+                        Syntax(
+                            str(diff)[:12000],
+                            "diff",
+                            theme=stheme,
+                            word_wrap=True,
+                            background_color="default",
+                        )
+                    )
+                    chunks.append(Text("\n"))
+            log.write(
+                Panel(
+                    RichGroup(*chunks),
+                    title=f"Tools ({len(wave)})",
+                    border_style="blue",
+                    expand=False,
+                )
+            )
+
+        if self._group_tools:
+            self.agent_loop._tool_wave_echo = tool_wave_echo
+        else:
+            self.agent_loop._tool_wave_echo = None
 
         def tool_echo(name: str, args: dict) -> None:
             if self._pending_tool_name is not None:
@@ -330,7 +417,11 @@ class PyOpenCodeApp(App):
             self._pending_tool_name = name
             self._pending_tool_args_line = one_line
 
-        def tool_result_echo(name: str, preview: str) -> None:
+        def tool_result_echo(
+            name: str,
+            preview: str,
+            diff: str | None = None,
+        ) -> None:
             if (
                 self._pending_tool_name is not None
                 and self._pending_tool_name != name
@@ -354,9 +445,24 @@ class PyOpenCodeApp(App):
                 body.append(args_line + "\n", style="dim")
             body.append("→ ", style=style)
             body.append(clipped, style=style)
+            stheme = (
+                "default" if self._theme_mode == "light" else "monokai"
+            )
+            inner: list = [body]
+            if diff:
+                inner.append(Text("\n"))
+                inner.append(
+                    Syntax(
+                        str(diff)[:12000],
+                        "diff",
+                        theme=stheme,
+                        word_wrap=True,
+                        background_color="default",
+                    )
+                )
             log.write(
                 Panel(
-                    body,
+                    RichGroup(*inner),
                     title=f"Tool · {name}",
                     border_style=border,
                     expand=False,
@@ -427,7 +533,11 @@ class PyOpenCodeApp(App):
             self._streaming_buf = ""
             self._stream_received = False
             if text:
-                _write_assistant_rich(log, text)
+                _write_assistant_rich(
+                    log,
+                    text,
+                    theme_mode=self._theme_mode,
+                )
                 log.write(Rule(style="dim"))
             elif msg.get("tool_calls"):
                 log.write(

@@ -5,9 +5,9 @@ file avoids duplicating snippets that drift.
 
 ## Product
 
-Terminal AI coding agent: ReAct loop, tool registry, LiteLLM-backed providers,
-optional Textual TUI and LSP tools. Goal: small core, clear failure modes (read
-before edit, permissions, compaction, sessions).
+Terminal AI coding agent in the **OpenCode + Claude Code** spirit: small ReAct
+core, LiteLLM-backed providers, optional Textual TUI and LSP tools. Goal: minimal
+code, clear failure modes (read before edit, permissions, compaction, sessions).
 
 ## Layout (mental map)
 
@@ -15,7 +15,7 @@ before edit, permissions, compaction, sessions).
 - `pyopencode/config.py` — defaults + `~/.pyopencode/config.toml` +
   `.pyopencode.toml` + env key wiring.
 - `pyopencode/core/` — `agent_loop`, `compaction`, `subagent`, `router`
-  (`ModelRouter` not yet wired into the main path).
+  (`ModelRouter` wired: main loop, compaction `summary_model: auto`, subagents).
 - `pyopencode/llm/` — client, providers, token counting.
 - `pyopencode/tools/` — registry, permissions, filesystem/git/search/LSP/repomap
   / subagent dispatch.
@@ -37,8 +37,8 @@ before edit, permissions, compaction, sessions).
 - **Read before write** enforced in prompts and workflow.
 - **Truncation** for large tool output (head/tail style where applicable).
 - **todo_write** for multi-step work; **tiered permissions** for tools.
-- **Cheaper model** for compaction when configured; **AGENT.md** for durable
-  project hints.
+- **ModelRouter** + cheap tier for compaction (`summary_model: "auto"` or
+  explicit model); **AGENT.md** for durable project hints.
 
 ## Prompts
 

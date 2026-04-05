@@ -67,6 +67,9 @@ def _run_agent_session(
     session_id: str | None,
     list_sessions: bool,
     tui: bool,
+    tui_theme: str,
+    tui_high_contrast: bool,
+    tui_group_tools: bool,
     initial_prompt: str | None,
 ) -> None:
     if list_sessions:
@@ -92,6 +95,9 @@ def _run_agent_session(
             initial_prompt,
             resume_latest=resume,
             resume_session_id=session_id,
+            theme=tui_theme,
+            high_contrast=tui_high_contrast,
+            group_tools=tui_group_tools,
         )
         return
 
@@ -132,6 +138,23 @@ def cli() -> None:
     is_flag=True,
     help="Textual UI (pip install 'pyopencode[tui]')",
 )
+@click.option(
+    "--tui-theme",
+    type=click.Choice(["dark", "light"]),
+    default="dark",
+    show_default=True,
+    help="Textual color theme (only with --tui)",
+)
+@click.option(
+    "--tui-high-contrast",
+    is_flag=True,
+    help="Stronger borders / emphasis in TUI (only with --tui)",
+)
+@click.option(
+    "--no-group-tools",
+    is_flag=True,
+    help="One panel per tool in TUI instead of a grouped batch panel",
+)
 @click.argument("initial_prompt", required=False)
 def run_command(
     model,
@@ -140,6 +163,9 @@ def run_command(
     session_id,
     list_sessions,
     tui,
+    tui_theme,
+    tui_high_contrast,
+    no_group_tools,
     initial_prompt,
 ) -> None:
     """Start the agent (REPL or one-shot with INITIAL_PROMPT)."""
@@ -150,6 +176,9 @@ def run_command(
         session_id=session_id,
         list_sessions=list_sessions,
         tui=tui,
+        tui_theme=tui_theme,
+        tui_high_contrast=tui_high_contrast,
+        tui_group_tools=not no_group_tools,
         initial_prompt=initial_prompt,
     )
 

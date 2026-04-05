@@ -1,7 +1,7 @@
 [project]
 name = "pyopencode"
 version = "0.1.0"
-description = "Lightweight terminal AI coding agent (Claude, GPT, Gemini, Qwen, SiliconFlow)."
+description = "Terminal AI coding agent: OpenCode-style minimal core + Claude Code-style workflow (Claude, GPT, Gemini, Qwen, SiliconFlow)."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -28,6 +28,15 @@ dev = [
     "textual==8.2.2",
 ]
 tui = ["textual>=0.50"]
+repomap = [
+    "tree-sitter>=0.21.0",
+    "tree-sitter-languages>=1.9.0",
+]
+lsp = [
+    "pygls>=1.3.0",
+]
+# MCP stdio client uses stdlib only; extra exists for docs / future SDK pins.
+mcp = []
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

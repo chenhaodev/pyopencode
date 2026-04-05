@@ -41,17 +41,34 @@ DEFAULT_CONFIG = {
             "todo_write",
             "get_repomap",
             "dispatch_subagents",
+            "lsp_sync_document",
+            "lsp_get_diagnostics",
+            "lsp_hover",
+            "lsp_document_symbols",
+            "mcp_list_tools",
         ],
         "allow_once_then_remember": ["write_file", "edit_file"],
         "always_ask": [
             "bash",
             "lsp_goto_definition",
             "lsp_find_references",
+            "mcp_call_tool",
         ],
+    },
+    "tools": {
+        "sync_timeout_sec": 120.0,
+        "async_timeout_sec": 180.0,
+        "bash_max_timeout_sec": 300,
+        "max_retries": 0,
+        "retry_delay_sec": 0.25,
+    },
+    "mcp": {
+        "servers": {},
     },
     "compaction": {
         "threshold_ratio": 0.85,
-        "summary_model": "qwen-turbo",
+        # "auto" = ModelRouter cheap tier (see core/router.py)
+        "summary_model": "auto",
         "keep_recent": 10,
     },
     "session": {

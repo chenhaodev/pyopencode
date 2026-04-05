@@ -2,8 +2,27 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from pyopencode.llm.client import LLMClient
+from pyopencode.llm.client import LLMClient, infer_provider_id_for_model
 from pyopencode.llm.token_counter import _estimate_tokens, count_messages_tokens
+
+
+class TestInferProvider:
+    def test_claude_maps_to_anthropic_when_configured(self):
+        cfg = {
+            "provider": "openai",
+            "providers": {
+                "anthropic": {"api_key_env": "ANTHROPIC_API_KEY"},
+                "openai": {"api_key_env": "OPENAI_API_KEY"},
+            },
+        }
+        assert infer_provider_id_for_model("claude-sonnet-4", cfg) == "anthropic"
+
+    def test_fallback_to_default_when_no_match(self):
+        cfg = {
+            "provider": "openai",
+            "providers": {"openai": {"api_key_env": "OPENAI_API_KEY"}},
+        }
+        assert infer_provider_id_for_model("unknown-model-xyz", cfg) == "openai"
 
 
 class TestTokenCounter:

@@ -10,9 +10,19 @@ Your task: {task}"""
 
 
 class SubAgent:
-    def __init__(self, llm: LLMClient, task: str, tools: list[str] = None):
+    def __init__(
+        self,
+        llm: LLMClient,
+        task: str,
+        tools: list[str] = None,
+        *,
+        model: str | None = None,
+        provider_id: str | None = None,
+    ):
         self.llm = llm
         self.task = task
+        self._model = model
+        self._provider_id = provider_id
         self.allowed_tools = tools or ["read_file", "glob_search", "grep_search"]
         self.messages = [
             {"role": "system", "content": SUBAGENT_PROMPT.format(task=task)},
@@ -28,11 +38,16 @@ class SubAgent:
 
     async def run(self, max_iterations: int = 10) -> str:
         for _ in range(max_iterations):
-            response = await self.llm.chat(
-                messages=self.messages,
-                tools=self._get_tool_schemas(),
-                stream=False,
-            )
+            chat_kw: dict = {
+                "messages": self.messages,
+                "tools": self._get_tool_schemas(),
+                "stream": False,
+            }
+            if self._model is not None:
+                chat_kw["model"] = self._model
+            if self._provider_id is not None:
+                chat_kw["provider_id"] = self._provider_id
+            response = await self.llm.chat(**chat_kw)
 
             self.messages.append({"role": "assistant", **response})
 
@@ -56,6 +71,20 @@ class SubAgent:
 
 
 async def run_subagents(llm: LLMClient, tasks: list[str]) -> list[str]:
-    agents = [SubAgent(llm, task) for task in tasks]
+    from pyopencode.core.router import ModelRouter
+    from pyopencode.llm.client import infer_provider_id_for_model
+
+    router = ModelRouter(llm.config)
+    sub_model = router.select("subagent")
+    sub_provider = infer_provider_id_for_model(sub_model, llm.config)
+    agents = [
+        SubAgent(
+            llm,
+            task,
+            model=sub_model,
+            provider_id=sub_provider,
+        )
+        for task in tasks
+    ]
     results = await asyncio.gather(*[agent.run() for agent in agents])
     return list(results)

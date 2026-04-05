@@ -94,6 +94,18 @@ async def test_dispatch_subagents_formats_output():
     )
 
     llm = AsyncMock()
+    llm.config = {
+        "model": "claude-sonnet-4-20250514",
+        "provider": "anthropic",
+        "fast_model": "qwen-turbo",
+        "providers": {
+            "anthropic": {"api_key_env": "ANTHROPIC_API_KEY"},
+            "qwen": {
+                "api_key_env": "DASHSCOPE_API_KEY",
+                "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            },
+        },
+    }
     llm.chat = AsyncMock(
         return_value={"content": "sub result", "tool_calls": None}
     )

@@ -2,7 +2,7 @@ import asyncio
 import json
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 
 class LSPBridge:
@@ -25,6 +25,8 @@ class LSPBridge:
         self._server_cmd = server_cmd
         self.process: Optional[subprocess.Popen] = None
         self._request_id = 0
+        self._diagnostics_by_uri: dict[str, list[Any]] = {}
+        self._doc_versions: dict[str, int] = {}
 
     async def start(self):
         cmd = self._server_cmd
@@ -71,6 +73,29 @@ class LSPBridge:
                 }
             },
         )
+        self._doc_versions[uri] = 1
+
+    async def did_change(
+        self,
+        file_path: str,
+        text: str,
+        language_id: Optional[str] = None,
+    ) -> None:
+        """Notify the server after disk edits (full-document sync)."""
+        uri = Path(file_path).expanduser().resolve().as_uri()
+        ver = self._doc_versions.get(uri, 0)
+        if ver == 0:
+            await self.did_open(file_path, text, language_id=language_id)
+            return
+        nver = ver + 1
+        self._doc_versions[uri] = nver
+        await self._send_notification(
+            "textDocument/didChange",
+            {
+                "textDocument": {"uri": uri, "version": nver},
+                "contentChanges": [{"text": text}],
+            },
+        )
 
     async def goto_definition(self, file_path: str, line: int, character: int) -> dict:
         uri = Path(file_path).expanduser().resolve().as_uri()
@@ -94,8 +119,30 @@ class LSPBridge:
         )
         return result.get("result", []) if isinstance(result, dict) else []
 
-    async def get_diagnostics(self, file_path: str) -> list:
-        return []
+    async def hover(self, file_path: str, line: int, character: int) -> dict:
+        uri = Path(file_path).expanduser().resolve().as_uri()
+        return await self._request(
+            "textDocument/hover",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": line, "character": character},
+            },
+        )
+
+    async def document_symbols(self, file_path: str) -> dict:
+        uri = Path(file_path).expanduser().resolve().as_uri()
+        return await self._request(
+            "textDocument/documentSymbol",
+            {"textDocument": {"uri": uri}},
+        )
+
+    def diagnostics_for_file(self, file_path: str) -> list[Any]:
+        uri = Path(file_path).expanduser().resolve().as_uri()
+        return list(self._diagnostics_by_uri.get(uri, []))
+
+    async def settle_diagnostics(self, delay_sec: float = 0.28) -> None:
+        """Wait briefly so publishDiagnostics notifications can arrive."""
+        await asyncio.sleep(delay_sec)
 
     async def _read_one_message(self) -> dict:
         if not self.process or not self.process.stdout:
@@ -119,13 +166,26 @@ class LSPBridge:
         except (json.JSONDecodeError, UnicodeDecodeError):
             return {}
 
+    def _handle_incoming_message(self, msg: dict) -> None:
+        if msg.get("id") is not None:
+            return
+        method = msg.get("method")
+        if method == "textDocument/publishDiagnostics":
+            params = msg.get("params") or {}
+            uri = params.get("uri", "")
+            diags = params.get("diagnostics") or []
+            if uri:
+                self._diagnostics_by_uri[uri] = list(diags)
+
     async def _read_until_response_id(self, req_id: int) -> dict:
-        for _ in range(256):
+        for _ in range(512):
             msg = await self._read_one_message()
             if not msg:
                 return {}
-            if msg.get("id") == req_id:
+            mid = msg.get("id")
+            if mid is not None and mid == req_id:
                 return msg
+            self._handle_incoming_message(msg)
         return {}
 
     def _read_stderr_tail(self) -> str:
@@ -206,7 +266,21 @@ class LSPBridge:
             {
                 "processId": None,
                 "rootUri": root.as_uri(),
-                "capabilities": {},
+                "capabilities": {
+                    "textDocument": {
+                        "synchronization": {
+                            "dynamicRegistration": False,
+                            "willSave": False,
+                            "didSave": False,
+                        },
+                        "publishDiagnostics": {
+                            "relatedInformation": True,
+                        },
+                        "hover": {"dynamicRegistration": False},
+                        "documentSymbol": {"dynamicRegistration": False},
+                    },
+                    "window": {"workDoneProgress": True},
+                },
                 "clientInfo": {"name": "pyopencode", "version": "0.1.0"},
             },
         )

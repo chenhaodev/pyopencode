@@ -1,6 +1,8 @@
 import subprocess
 
 from pyopencode.tools.registry import registry
+from pyopencode.tools.tool_runtime import get_settings
+from pyopencode.utils.bash_policy import bash_command_blocked_reason
 from pyopencode.utils.truncate import truncate_output
 
 
@@ -24,6 +26,11 @@ from pyopencode.utils.truncate import truncate_output
     category="always_ask",
 )
 def bash(command: str, timeout: int = 60) -> str:
+    blocked = bash_command_blocked_reason(command)
+    if blocked:
+        return f"Error: command blocked ({blocked})."
+    cap = int(get_settings()["bash_max_timeout_sec"])
+    timeout = min(int(timeout), cap)
     try:
         result = subprocess.run(
             command,
