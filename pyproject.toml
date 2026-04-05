@@ -16,6 +16,7 @@ pyopencode = "pyopencode.main:main"
 Changelog = "https://github.com/chenhaodev/pyopencode/blob/main/CHANGELOG.md"
 Homepage = "https://github.com/chenhaodev/pyopencode"
 Repository = "https://github.com/chenhaodev/pyopencode"
+Roadmap = "https://github.com/chenhaodev/pyopencode/blob/main/ROADMAP.md"
 
 [project.optional-dependencies]
 dev = [

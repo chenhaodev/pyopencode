@@ -1,5 +1,7 @@
 # 参与贡献
 
+产品阶段规划与 `TASK.md` 对照见根目录 **[ROADMAP.md](ROADMAP.md)**。
+
 ## 环境
 
 - Python **3.11+**（与 `pyproject.toml` 一致）

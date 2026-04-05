@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ROADMAP.md`: future work vs `TASK.md` and current implementation.
 - LSP connection pool (`lsp_session`) and tool `lsp_find_references`.
 - `uv.lock` with CI using `uv sync --frozen --extra dev`.
 - Dependabot updates for GitHub Actions and pip/uv lockfile.

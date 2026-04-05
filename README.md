@@ -78,7 +78,7 @@ max_tokens = 16384
 
 ## Development and CI
 
-贡献流程与本地命令见 [CONTRIBUTING.md](CONTRIBUTING.md)。可选：安装 **pre-commit**
+贡献流程与本地命令见 [CONTRIBUTING.md](CONTRIBUTING.md)。**后续计划与 TASK 对照**见 [ROADMAP.md](ROADMAP.md)。可选：安装 **pre-commit**
 后在提交前自动跑 **ruff**（`pre-commit install`）。
 
 ```bash
@@ -101,8 +101,7 @@ job that installs `pyright` via npm and runs the LSP integration test.
 
 ---
 
-**中文摘要：** 安装可用 **uv** 或 **pip**；开发说明见 **CONTRIBUTING.md**，可选
-**pre-commit**。GitHub **CI 已用 uv** 装依赖。TUI 中 **Ctrl+Shift+G** 聚焦聊天日志、
+**中文摘要：** 安装可用 **uv** 或 **pip**；开发见 **CONTRIBUTING.md**，后续路线见 **ROADMAP.md**（对照 **TASK.md**），可选 **pre-commit**。GitHub **CI 已用 uv** 装依赖。TUI 中 **Ctrl+Shift+G** 聚焦聊天日志、
 **F1** 帮助；工具调用与结果以 **Panel** 成块显示。配置合并顺序见上文；CLI 支持
 `--resume` / `--session-id` / `--list-sessions` / `--tui`。LSP 工具
 `lsp_goto_definition` / `lsp_find_references`、**LSP 连接池** 与 `PYOPENCODE_PYRIGHT_JS`
