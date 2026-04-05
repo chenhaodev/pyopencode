@@ -15,14 +15,51 @@ Qwen / DashScope, SiliconFlow), and an optional **Textual TUI**.
 git clone https://github.com/chenhaodev/pyopencode.git
 cd pyopencode
 pip install -e .
-# or: uv pip install -e .
 ```
+
+### Using uv (recommended for this repo)
+
+Locked install (matches CI — includes dev tools if you add `--extra dev`):
+
+```bash
+cd pyopencode
+uv venv
+uv sync --frozen --extra dev    # or: uv sync --extra dev
+```
+
+Runtime-only (no pytest/ruff in the lock group — still pulls **click** + **litellm**):
+
+```bash
+uv sync --frozen
+```
+
+Editable install with **pip** front-end (must target the venv’s Python explicitly
+if the environment is not the project default):
+
+```bash
+uv venv
+uv pip install --python .venv/bin/python -e .
+# optional UI:  uv pip install --python .venv/bin/python -e ".[tui]"
+```
+
+**Trap — empty venv + `UV_PROJECT_ENVIRONMENT`:** if `UV_PROJECT_ENVIRONMENT`
+points at a separate, empty environment and you run **`uv pip install -e .`**
+without **`--python …/bin/python`**, uv may only link the editable package and
+**skip dependencies**, leading to `ModuleNotFoundError: click` when you run
+`pyopencode`. **Unset `UV_PROJECT_ENVIRONMENT`**, work from the repo root with
+the default `.venv`, or always pass **`--python`** to `uv pip install` for your
+target interpreter. After install, **`pyopencode doctor`** checks **litellm**
+(and prints the interpreter path).
 
 | Extra | Install | Purpose |
 |-------|---------|---------|
 | *(none)* | `pip install -e .` | CLI + agent core |
 | **`[tui]`** | `pip install -e ".[tui]"` | Textual chat UI (`--tui`) |
 | **`[dev]`** | `pip install -e ".[dev]"` | pytest, ruff, pre-commit, Textual (Pilot tests) |
+
+If `python -m pyopencode` fails with **No module named 'click'**, your venv is
+missing dependencies — use **`uv sync`** or **`uv pip install --python … -e .`**
+as above (not only the editable name).
 
 **From PyPI:** `pip install pyopencode` / `pip install "pyopencode[tui]"` after
 release ([RELEASING.md](RELEASING.md)). If `pip` reports *no matching

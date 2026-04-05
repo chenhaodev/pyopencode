@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `python -m pyopencode` (`__main__.py`).
 - README: full rewrite for install extras, quick start, API keys, CLI/TUI
   reference, correct session DB path, config/doctor pointers.
+- `doctor`: print interpreter path; verify click/litellm; exit 1 + fix hints if
+  core deps missing; README/CONTRIBUTING document `UV_PROJECT_ENVIRONMENT` /
+  `uv pip install` trap and recommend `uv sync`.
 - `LICENSE` (MIT) and `license` metadata in `pyproject.toml`.
 - `ROADMAP.md`: future work vs `TASK.md` and current implementation.
 - LSP connection pool (`lsp_session`) and tool `lsp_find_references`.

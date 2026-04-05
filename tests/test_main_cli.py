@@ -90,6 +90,8 @@ def test_doctor_runs(tmp_path, monkeypatch):
     result = runner.invoke(cli, ["doctor"])
     assert result.exit_code == 0
     assert "Python:" in result.output
+    assert "Interpreter:" in result.output
+    assert "litellm: ok" in result.output
 
 
 def test_dispatch_inserts_run_for_bare_prompt(tmp_path, monkeypatch):

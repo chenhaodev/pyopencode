@@ -16,6 +16,13 @@ uv sync --extra dev
 # 或仅检查锁是否最新: uv lock --check
 ```
 
+**注意 `UV_PROJECT_ENVIRONMENT`：** 若把它指到一个**空的**虚拟环境，又在未指定
+**`--python`** 的情况下执行 **`uv pip install -e .`**，有可能只装上 editable
+包而**没有**把 **click / litellm** 装进该环境，运行 `pyopencode` 会报
+`ModuleNotFoundError: click`。请在仓库根目录用默认 **`.venv`** + **`uv sync`**，
+或对目标解释器显式执行 **`uv pip install --python /path/to/venv/bin/python -e .`**。
+装好后可用 **`pyopencode doctor`** 查看 **Interpreter** 与 **Core dependencies**。
+
 也可沿用 **pip** 可编辑安装：
 
 ```bash

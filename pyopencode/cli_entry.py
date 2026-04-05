@@ -233,12 +233,44 @@ def doctor() -> None:
     """Quick environment check (Python, keys, optional TUI)."""
     click.echo(f"Python:    {platform.python_version()}")
     click.echo(f"Platform:  {platform.system()} {platform.release()}")
+    click.echo(f"Interpreter: {sys.executable}")
     click.echo("API keys (env):")
     for envn in sorted(PROVIDER_ENV_VARS.values()):
         val = os.environ.get(envn)
         click.echo(f"  {envn}: {'set' if val else 'unset'}")
     cpath = credentials_path()
     click.echo(f"credentials.json: {'exists' if cpath.exists() else 'missing'}")
+    click.echo("Core dependencies:")
+    core_ok = True
+    for mod in ("click", "litellm"):
+        try:
+            __import__(mod)
+            click.echo(f"  {mod}: ok")
+        except ImportError:
+            core_ok = False
+            click.echo(f"  {mod}: MISSING")
+    if not core_ok:
+        click.echo("", err=True)
+        click.echo(
+            "Fix: from the repository root, install dependencies into this "
+            "interpreter, e.g.",
+            err=True,
+        )
+        click.echo(
+            "  uv sync",
+            err=True,
+        )
+        click.echo(
+            "  uv pip install --python \"$(which python)\" -e .",
+            err=True,
+        )
+        click.echo(
+            "If UV_PROJECT_ENVIRONMENT points at an empty venv, either unset it "
+            "or pass --python /path/to/that/venv/bin/python to uv pip install "
+            "so click/litellm are installed there (not only the editable stub).",
+            err=True,
+        )
+        raise SystemExit(1)
     try:
         import textual  # noqa: F401
 
