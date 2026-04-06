@@ -7,6 +7,12 @@ string-replacement `edit_file`). Backends are unified through
 [LiteLLM](https://github.com/BerriAI/litellm) (Claude, OpenAI, Gemini,
 Qwen / DashScope, SiliconFlow), with an optional **Textual TUI** and LSP tools.
 
+**Ultrawork (compact)** is an optional high-push mode: extra system instructions
+for finishing tasks, todos, parallel exploration, and verification — enabled
+with **`--ultrawork` / `-U`**, **`[agent] ultrawork = true`**, or a message prefix
+`ulw ` / `ultrawork `. It is not the full oh-my-opencode Ultrawork stack (no
+bundled sub-agents beyond `dispatch_subagents`).
+
 ---
 
 ## Install
@@ -59,6 +65,7 @@ target interpreter. After install, **`pyopencode doctor`** checks **litellm**
 | **`[tui]`** | `pip install -e ".[tui]"` | Textual chat UI (`--tui`, themes, grouped tool panels) |
 | **`[repomap]`** | `pip install -e ".[repomap]"` | `get_repomap` with `prefer_tree_sitter=true` (tree-sitter) |
 | **`[lsp]`** | `pip install -e ".[lsp]"` | Optional `pygls` for building/extending language servers |
+| **`[mcp]`** | `pip install -e ".[mcp]"` | Placeholder extra; MCP stdio uses stdlib (see [Config snippets](#config-snippets-pyopencodeconfigtoml-or-pyopencodetoml)) |
 | **`[dev]`** | `pip install -e ".[dev]"` | pytest, ruff, pre-commit, Textual (Pilot tests) |
 
 If `python -m pyopencode` fails with **No module named 'click'**, your venv is
@@ -76,8 +83,10 @@ distribution*, use the clone flow above.
 1. **API keys** — set env vars or run `pyopencode auth login` (see [API keys](#api-keys)).
 2. **Sanity check:** `pyopencode doctor` (Python version, which keys are set,
    whether Textual is installed).
-3. **Run:** `pyopencode "summarize this repo"` or `pyopencode --tui` for the UI
-   (`--tui-theme light|dark`, `--tui-high-contrast`, `--no-group-tools` optional).
+3. **Run:** `pyopencode "summarize this repo"`, `pyopencode -U "bigger task"` for
+   [Ultrawork](#config-snippets-pyopencodeconfigtoml-or-pyopencodetoml), or
+   `pyopencode --tui` for the UI (`--tui-theme light|dark`, `--tui-high-contrast`,
+   `--no-group-tools` optional).
 
 Entry points:
 
@@ -140,6 +149,10 @@ Global options: **`pyopencode --help`**, **`pyopencode --version`**.
 | **`doctor`** | Python/OS, env key presence, `credentials.json`, Textual, `cwd`. |
 | **`version`** | Package version (same as `--version`). |
 
+**`run` flags (high level):** `--model` / `--provider`, `--resume` / `--session-id`,
+`--list-sessions`, **`--ultrawork` / `-U`**, `--tui` with `--tui-theme`,
+`--tui-high-contrast`, `--no-group-tools`. See **`pyopencode run --help`**.
+
 ### `run` (agent)
 
 ```bash
@@ -154,6 +167,7 @@ pyopencode run --tui                    # Textual UI (needs [tui])
 pyopencode run --tui --resume
 pyopencode run --tui --tui-theme light --tui-high-contrast
 pyopencode run --tui --no-group-tools   # one Panel per tool instead of batch
+pyopencode run -U "refactor X"          # Ultrawork (compact high-push mode)
 ```
 
 **Shorthand:** if the first argument is **not** a known subcommand (`run`,
@@ -169,6 +183,18 @@ pyopencode --model gpt-4o --provider openai "hello"
 Use **`pyopencode run --help`** for the full option list.
 
 ### Config snippets (`~/.pyopencode/config.toml` or `.pyopencode.toml`)
+
+**Ultrawork (compact “push to finish” mode)**
+
+```toml
+[agent]
+ultrawork = true
+```
+
+Or per run: `pyopencode run -U "your task"` / `pyopencode run --ultrawork --tui`. You can also
+start a message with `ulw ` or `ultrawork ` (similar to OpenCode’s keyword), which enables the
+mode for that session and strips the prefix. This only appends extra system instructions — no
+separate plugin agents. Shorthand works too: `pyopencode -U "task"` (CLI injects `run`).
 
 **Tool timeouts / bash cap / retries**
 
@@ -208,7 +234,11 @@ Requires the **`[tui]`** extra (`pip install -e ".[tui]"` or PyPI
 ```bash
 pyopencode --tui
 pyopencode run --tui --resume
+pyopencode run --tui -U "large refactor"   # Ultrawork + TUI
 ```
+
+**Ultrawork in TUI:** use **`run --ultrawork`** / **`-U`**, set **`[agent] ultrawork`**
+in TOML, or prefix the first (or any) message with **`ulw `** / **`ultrawork `**.
 
 ### Composer (bottom area)
 

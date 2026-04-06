@@ -22,6 +22,7 @@ def run_tui(
             resume_latest=resume_latest and resume_session_id is None,
             resume_session_id=resume_session_id,
         )
+        agent._maybe_ultrawork_greet()
         app = PyOpenCodeApp(
             agent_loop=agent,
             initial_prompt=initial_prompt,

@@ -329,10 +329,14 @@ class PyOpenCodeApp(App):
         )
 
     async def _run_user_turn(self, user_input: str) -> None:
+        processed = self.agent_loop.consume_ultrawork_prefix(user_input)
+        self.agent_loop._maybe_ultrawork_greet()
+        if not processed:
+            return
         log = self.query_one("#chat-log", RichLog)
         self._reset_stream_panel()
-        _write_user_message(log, user_input)
-        await self.agent_loop._process_user_input(user_input)
+        _write_user_message(log, processed)
+        await self.agent_loop._process_user_input(processed)
         self._log_last_assistant()
         self._refresh_status()
 

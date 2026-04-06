@@ -78,6 +78,10 @@ DEFAULT_CONFIG = {
     "fast_model": "qwen-turbo",
     "long_context_model": "gemini-2.0-flash",
     "cheap_model": "minimax-2.5",
+    # Minimal "ultrawork-like" mode: stronger autonomy + plan/verify (see agent_loop).
+    "agent": {
+        "ultrawork": False,
+    },
 }
 
 

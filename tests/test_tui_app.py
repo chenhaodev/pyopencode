@@ -43,6 +43,12 @@ class StubAgent:
         self.clear_count += 1
         self.messages = [{"role": "system", "content": "stub"}]
 
+    def consume_ultrawork_prefix(self, text: str) -> str:
+        return text.strip()
+
+    def _maybe_ultrawork_greet(self) -> None:
+        pass
+
 
 def test_truncate_log_text_short_unchanged() -> None:
     assert _truncate_log_text("hi", 10) == "hi"

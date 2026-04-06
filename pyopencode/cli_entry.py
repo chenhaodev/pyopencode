@@ -70,6 +70,7 @@ def _run_agent_session(
     tui_theme: str,
     tui_high_contrast: bool,
     tui_group_tools: bool,
+    ultrawork: bool,
     initial_prompt: str | None,
 ) -> None:
     if list_sessions:
@@ -84,6 +85,11 @@ def _run_agent_session(
         config["model"] = model
     if provider:
         config["provider"] = provider
+    if ultrawork:
+        config.setdefault("agent", {})
+        if not isinstance(config["agent"], dict):
+            config["agent"] = {}
+        config["agent"]["ultrawork"] = True
 
     if tui:
         try:
@@ -155,6 +161,15 @@ def cli() -> None:
     is_flag=True,
     help="One panel per tool in TUI instead of a grouped batch panel",
 )
+@click.option(
+    "--ultrawork",
+    "-U",
+    is_flag=True,
+    help=(
+        "Compact high-push mode: stronger finish line, todos, parallel explore, "
+        "verify (see docs). Same as prefix 'ulw ' / 'ultrawork ' on a message."
+    ),
+)
 @click.argument("initial_prompt", required=False)
 def run_command(
     model,
@@ -166,6 +181,7 @@ def run_command(
     tui_theme,
     tui_high_contrast,
     no_group_tools,
+    ultrawork,
     initial_prompt,
 ) -> None:
     """Start the agent (REPL or one-shot with INITIAL_PROMPT)."""
@@ -179,6 +195,7 @@ def run_command(
         tui_theme=tui_theme,
         tui_high_contrast=tui_high_contrast,
         tui_group_tools=not no_group_tools,
+        ultrawork=ultrawork,
         initial_prompt=initial_prompt,
     )
 

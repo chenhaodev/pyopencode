@@ -103,6 +103,35 @@ lsp_get_diagnostics to read issues. MCP tools (mcp_*) are available when configu
 {memory_section}
 """
 
+# Short add-on (not a full oh-my-opencode stack): stricter finish line + parallelism.
+ULTRAWORK_MODE_APPEND = """
+
+## Ultrawork mode (compact)
+You are in **Ultrawork** — a minimal high-push mode (not full OpenCode plugins).
+
+1. **Finish the job**: Do not stop with “I can’t” until you have tried the relevant \
+tools (search, read, bash tests, LSP diagnostics if applicable). Only ask the user \
+for missing secrets or truly unknowable product choices.
+2. **Plan visibly**: For anything non-trivial, start with `todo_write` and keep it \
+updated until all items are `done`.
+3. **Parallel discovery**: When several files or areas matter, prefer \
+`dispatch_subagents` (or parallel reads) before serial guessing.
+4. **Verify**: After code changes, run the project’s tests or linters via `bash` when \
+reasonable; otherwise re-read changed files and use `lsp_get_diagnostics` for edited \
+languages when an LSP is available.
+5. **Report**: End with what changed, what you verified, and what is left (if any).
+"""
+
+
+def _strip_ultrawork_prefix(text: str) -> tuple[str, bool]:
+    """Detect leading `ultrawork ` or `ulw ` (case-insensitive); return body + flag."""
+    stripped = text.strip()
+    low = stripped.lower()
+    for needle in ("ultrawork ", "ulw "):
+        if low.startswith(needle):
+            return stripped[len(needle) :].lstrip(), True
+    return stripped, False
+
 
 class AgentLoop:
     def __init__(self, config: dict):
@@ -131,6 +160,7 @@ class AgentLoop:
         self._llm_idle_hook: Optional[Callable[[], None]] = None
         self._llm_busy_hook: Optional[Callable[[], None]] = None
         self._permission_handler: Optional[PermissionHandler] = None
+        self._ultrawork_greeted = False
 
     def _emit(self, message: str) -> None:
         if self._notify:
@@ -143,7 +173,32 @@ class AgentLoop:
         memory_section = ""
         if memory:
             memory_section = f"## Project Memory (from AGENT.md)\n{memory}"
-        return SYSTEM_PROMPT.format(memory_section=memory_section)
+        base = SYSTEM_PROMPT.format(memory_section=memory_section)
+        agent_cfg = self.config.get("agent")
+        if isinstance(agent_cfg, dict) and agent_cfg.get("ultrawork"):
+            return base + ULTRAWORK_MODE_APPEND
+        return base
+
+    def _maybe_ultrawork_greet(self) -> None:
+        ag = self.config.get("agent")
+        if not isinstance(ag, dict) or not ag.get("ultrawork"):
+            return
+        if self._ultrawork_greeted:
+            return
+        self._ultrawork_greeted = True
+        self._emit("⚡ Ultrawork mode enabled (compact).\n")
+
+    def consume_ultrawork_prefix(self, text: str) -> str:
+        """Enable Ultrawork for this session if text starts with ulw/ultrawork."""
+        body, enabled = _strip_ultrawork_prefix(text)
+        if not enabled:
+            return body
+        self.config.setdefault("agent", {})
+        if not isinstance(self.config["agent"], dict):
+            self.config["agent"] = {}
+        self.config["agent"]["ultrawork"] = True
+        self._refresh_system_prompt_in_messages()
+        return body
 
     def _refresh_system_prompt_in_messages(self) -> None:
         content = self._build_system_prompt()
@@ -230,18 +285,24 @@ class AgentLoop:
             resume_latest=resume and resume_session_id is None,
             resume_session_id=resume_session_id,
         )
+        self._maybe_ultrawork_greet()
 
         try:
             if initial_prompt:
-                await self._process_user_input(initial_prompt)
+                first = self.consume_ultrawork_prefix(initial_prompt)
+                self._maybe_ultrawork_greet()
+                if first:
+                    await self._process_user_input(first)
 
             while True:
                 try:
-                    user_input = input("\n> ").strip()
+                    raw = input("\n> ")
                 except (EOFError, KeyboardInterrupt):
                     print("\nBye!")
                     break
 
+                user_input = self.consume_ultrawork_prefix(raw)
+                self._maybe_ultrawork_greet()
                 if not user_input:
                     continue
                 if user_input.lower() == "exit":
