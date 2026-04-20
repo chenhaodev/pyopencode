@@ -25,7 +25,7 @@ dev = [
     "pytest==8.3.4",
     "pytest-asyncio==0.24.0",
     "ruff==0.9.5",
-    "textual==8.2.2",
+    "textual==8.2.3",
 ]
 tui = ["textual>=0.50"]
 repomap = [
